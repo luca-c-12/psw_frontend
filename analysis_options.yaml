@@ -1,0 +1,28 @@
+# Regole di stile del linter. Alcune sono disattivate perché il codice ripreso dal progetto
+# di esempio segue convenzioni diverse (nomi dei file con la maiuscola, costanti MAIUSCOLE, ...):
+# così nell'IDE non vedi decine di avvisi gialli che non indicano errori veri.
+analyzer:
+  exclude:
+    - build/**
+    - web/**
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    file_names: false
+    constant_identifier_names: false
+    non_constant_identifier_names: false
+    use_key_in_widget_constructors: false
+    prefer_const_constructors: false
+    prefer_const_literals_to_create_immutables: false
+    prefer_const_constructors_in_immutables: false
+    library_private_types_in_public_api: false
+    no_logic_in_create_state: false
+    prefer_collection_literals: false
+    prefer_interpolation_to_compose_strings: false
+    prefer_final_fields: false
+    sort_child_properties_last: false
+    unnecessary_this: false
+    unnecessary_new: false
+    overridden_fields: false
+    avoid_print: false

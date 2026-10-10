@@ -1,0 +1,30 @@
+name: psw_frontend
+description: "Frontend Flutter del progetto PSW (e-commerce con aste)."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  # Flutter 3.35 o più recente (Dart 3.9): serve per alcune API usate nei form e nelle immagini.
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # traduzioni italiane dei componenti già pronti di Flutter (calendario, orologio, ...)
+  flutter_localizations:
+    sdk: flutter
+
+  # chiamate HTTP verso backend e Keycloak (come nell'esempio)
+  http: ^1.2.0
+  # apertura di pagine web: registrazione e account su Keycloak (come nell'esempio)
+  url_launcher: ^6.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
