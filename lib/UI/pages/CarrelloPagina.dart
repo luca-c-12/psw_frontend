@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:psw_frontend/UI/pages/Storico.dart';
 import 'package:psw_frontend/UI/widgets/Avvisi.dart';
 import 'package:psw_frontend/model/Model.dart';
 import 'package:psw_frontend/model/objects/Carrello.dart';
@@ -76,6 +77,12 @@ class _CarrelloPaginaState extends State<CarrelloPagina>
             context,
             "Ordine n. ${ordine.idOrdine} confermato: pagati ${formattaEuro(ordine.totalePagato)}",
           );
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) =>
+                  RiepilogoOrdine(idOrdine: ordine.idOrdine, ordine: ordine),
+            ),
+          );
         }
       },
       imposta: (v) => _invio = v,
@@ -85,9 +92,16 @@ class _CarrelloPaginaState extends State<CarrelloPagina>
 
   /// Bottone "Svuota carrello".
   Future<void> _svuota() async {
-    if (!await chiediConferma(context, "Togliere tutti i prodotti dal carrello?")) return;
+    if (!await chiediConferma(
+      context,
+      "Togliere tutti i prodotti dal carrello?",
+    ))
+      return;
     if (!mounted) return;
-    await esegui(() => Model.sharedInstance.svuotaCarrello(), imposta: (v) => _invio = v);
+    await esegui(
+      () => Model.sharedInstance.svuotaCarrello(),
+      imposta: (v) => _invio = v,
+    );
   }
 
   /// Per chi non ha fatto login: porta alla tab "Accedi" (l'ultima).

@@ -223,8 +223,12 @@ class Model extends ChangeNotifier {
   /// POST /prodotti/{codice}/recensioni   Body: {"voto": 1..5, "testo": "..."} → RecensioneDTO creata.
   /// 409 se il cliente l'ha già recensito o non l'ha mai acquistato.
   Future<Recensione> scriviRecensione(int codiceProdotto, int voto, String testo) async {
-    // TODO
-    throw UnimplementedError("TODO: scriviRecensione");
+    Map<String, dynamic> body = {
+      "voto" : voto,
+      "testo" : testo.trim()
+    };
+    String risposta = await _restManager.makePostRequest(Constants.ADDRESS_STORE_SERVER, "${Constants.REQUEST_PRODOTTI}/$codiceProdotto/recensioni", body);
+    return Recensione.fromJson(jsonDecode(risposta));
   }
 
   /// GET /recensioni/mie → pagina delle recensioni del cliente, dalla più recente.
@@ -235,8 +239,12 @@ class Model extends ChangeNotifier {
 
   /// PUT /recensioni/{id}   Body: {"voto": 1..5, "testo": "..."} → RecensioneDTO aggiornata.
   Future<Recensione> modificaRecensione(int idRecensione, int voto, String testo) async {
-    // TODO
-    throw UnimplementedError("TODO: modificaRecensione");
+    Map<String, dynamic> body = {
+      "voto" : voto,
+      "testo" : testo.trim()
+    };
+    String risposta = await _restManager.makePutRequest(Constants.ADDRESS_STORE_SERVER, "${Constants.REQUEST_RECENSIONI}/$idRecensione", body);
+    return Recensione.fromJson(jsonDecode(risposta));
   }
 
   /// DELETE /recensioni/{id} → 204.

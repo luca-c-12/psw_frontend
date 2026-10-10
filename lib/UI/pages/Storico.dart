@@ -10,11 +10,9 @@ import 'package:psw_frontend/model/objects/Pagina.dart';
 import 'package:psw_frontend/model/objects/Prodotto.dart';
 import 'package:psw_frontend/model/support/Formati.dart';
 
-
 /// Storico del cliente: ordini, recensioni e offerte alle aste, in tre tab.
 class Storico extends StatelessWidget {
   final int tabIniziale;
-
 
   Storico({this.tabIniziale = 0}) : super();
 
@@ -49,10 +47,7 @@ class Storico extends StatelessWidget {
       ),
     );
   }
-
-
 }
-
 
 /// Bottone "Carica altri" in fondo a un elenco.
 Widget _caricaAltri(bool ultima, bool caricamento, VoidCallback carica) {
@@ -66,7 +61,12 @@ Widget _caricaAltri(bool ultima, bool caricamento, VoidCallback carica) {
 }
 
 /// Messaggio (o rotellina) al posto di un elenco vuoto.
-Widget _elencoVuoto(BuildContext context, bool caricamento, IconData icona, String testo) {
+Widget _elencoVuoto(
+  BuildContext context,
+  bool caricamento,
+  IconData icona,
+  String testo,
+) {
   if (caricamento) return Center(child: CircularProgressIndicator());
   return Center(
     child: Column(
@@ -92,7 +92,6 @@ Widget _miniatura(String? url, {double lato = 56}) {
   );
 }
 
-
 // ================================== ORDINI ==================================
 
 class _StoricoOrdini extends StatefulWidget {
@@ -100,12 +99,12 @@ class _StoricoOrdini extends StatefulWidget {
   _StoricoOrdiniState createState() => _StoricoOrdiniState();
 }
 
-class _StoricoOrdiniState extends State<_StoricoOrdini> with AzioniPagina<_StoricoOrdini> {
+class _StoricoOrdiniState extends State<_StoricoOrdini>
+    with AzioniPagina<_StoricoOrdini> {
   List<Ordine> _ordini = [];
   int _pagina = 0;
   bool _ultima = true;
   bool _caricamento = false;
-
 
   @override
   void initState() {
@@ -137,14 +136,23 @@ class _StoricoOrdiniState extends State<_StoricoOrdini> with AzioniPagina<_Stori
   Widget build(BuildContext context) {
     ThemeData tema = Theme.of(context);
     if (_ordini.isEmpty) {
-      return _elencoVuoto(context, _caricamento, Icons.receipt_long_outlined, "Non hai ancora effettuato ordini.");
+      return _elencoVuoto(
+        context,
+        _caricamento,
+        Icons.receipt_long_outlined,
+        "Non hai ancora effettuato ordini.",
+      );
     }
     return ListView.builder(
       padding: EdgeInsets.all(16),
       itemCount: _ordini.length + 1,
       itemBuilder: (context, index) {
         if (index == _ordini.length) {
-          return _caricaAltri(_ultima, _caricamento, () => _carica(daCapo: false));
+          return _caricaAltri(
+            _ultima,
+            _caricamento,
+            () => _carica(daCapo: false),
+          );
         }
         Ordine ordine = _ordini[index];
         return Card(
@@ -152,14 +160,19 @@ class _StoricoOrdiniState extends State<_StoricoOrdini> with AzioniPagina<_Stori
           child: ListTile(
             contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             leading: CircleAvatar(child: Icon(Icons.receipt_long_outlined)),
-            title: Text("Ordine n. ${ordine.idOrdine}", style: tema.textTheme.titleMedium),
+            title: Text(
+              "Ordine n. ${ordine.idOrdine}",
+              style: tema.textTheme.titleMedium,
+            ),
             subtitle: Text(formattaDataOra(ordine.dataOrdine)),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   formattaEuro(ordine.totalePagato),
-                  style: tema.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  style: tema.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 SizedBox(width: 8),
                 Icon(Icons.chevron_right),
@@ -167,7 +180,10 @@ class _StoricoOrdiniState extends State<_StoricoOrdini> with AzioniPagina<_Stori
             ),
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => RiepilogoOrdine(idOrdine: ordine.idOrdine)),
+                MaterialPageRoute(
+                  builder: (context) =>
+                      RiepilogoOrdine(idOrdine: ordine.idOrdine),
+                ),
               );
             },
           ),
@@ -175,10 +191,7 @@ class _StoricoOrdiniState extends State<_StoricoOrdini> with AzioniPagina<_Stori
       },
     );
   }
-
-
 }
-
 
 // ================================ RECENSIONI ================================
 
@@ -187,8 +200,10 @@ class _StoricoRecensioni extends StatefulWidget {
   _StoricoRecensioniState createState() => _StoricoRecensioniState();
 }
 
-class _StoricoRecensioniState extends State<_StoricoRecensioni> with AzioniPagina<_StoricoRecensioni> {
+class _StoricoRecensioniState extends State<_StoricoRecensioni>
+    with AzioniPagina<_StoricoRecensioni> {
   List<Recensione> _recensioni = [];
+
   // la recensione contiene solo il codice del prodotto: nome e immagine si leggono a parte
   // (null = prodotto nascosto o esaurito)
   Map<int, Prodotto?> _prodotti = {};
@@ -196,7 +211,6 @@ class _StoricoRecensioniState extends State<_StoricoRecensioni> with AzioniPagin
   bool _ultima = true;
   bool _caricamento = false;
   bool _invio = false;
-
 
   @override
   void initState() {
@@ -214,9 +228,17 @@ class _StoricoRecensioniState extends State<_StoricoRecensioni> with AzioniPagin
       });
     }
     await esegui(() async {
-      Pagina<Recensione> p = await Model.sharedInstance.getRecensioniMie(_pagina);
-      List<int> mancanti = p.contenuto.map((r) => r.codiceProdotto).toSet().where((c) => !_prodotti.containsKey(c)).toList();
-      List<Prodotto?> letti = await Future.wait(mancanti.map(_prodottoOppureNull));
+      Pagina<Recensione> p = await Model.sharedInstance.getRecensioniMie(
+        _pagina,
+      );
+      List<int> mancanti = p.contenuto
+          .map((r) => r.codiceProdotto)
+          .toSet()
+          .where((c) => !_prodotti.containsKey(c))
+          .toList();
+      List<Prodotto?> letti = await Future.wait(
+        mancanti.map(_prodottoOppureNull),
+      );
       if (!mounted) return;
       setState(() {
         _prodotti.addAll(Map.fromIterables(mancanti, letti));
@@ -237,28 +259,47 @@ class _StoricoRecensioniState extends State<_StoricoRecensioni> with AzioniPagin
 
   /// Salva la recensione modificata e la sostituisce nell'elenco.
   Future<void> _modificaRecensione(Recensione r, int voto, String testo) async {
-    // TODO
+    await esegui(() async {
+      Recensione recensioneAggiornata = await Model.sharedInstance.modificaRecensione(r.idRecensione, voto, testo);
+      if(mounted) {
+        setState(() {
+          int indice = _recensioni.indexOf(r);
+          if(indice != -1) {
+            _recensioni[indice] = recensioneAggiornata;
+          }
+
+        });
+      }
+    },
+        imposta: (v) => _invio = v,
+        messaggio: "Recensione aggiornata correttamente.");
   }
 
   /// Cestino di una recensione.
   Future<void> _elimina(Recensione r) async {
     if (!await chiediConferma(context, "Eliminare questa recensione?")) return;
     if (!mounted) return;
-    await esegui(() async {
-      await Model.sharedInstance.eliminaRecensione(r.idRecensione);
-      if (mounted) {
-        setState(() {
-          _recensioni.remove(r);
-        });
-      }
-    }, imposta: (v) => _invio = v, messaggio: "Recensione eliminata");
+    await esegui(
+      () async {
+        await Model.sharedInstance.eliminaRecensione(r.idRecensione);
+        if (mounted) {
+          setState(() {
+            _recensioni.remove(r);
+          });
+        }
+      },
+      imposta: (v) => _invio = v,
+      messaggio: "Recensione eliminata",
+    );
   }
 
   Future<void> _apriModifica(Recensione r) async {
-    ({int voto, String testo})? scelta = await showDialog<({int voto, String testo})>(
-      context: context,
-      builder: (context) => _DialogoRecensione(voto: r.voto, testo: r.testo ?? ""),
-    );
+    ({int voto, String testo})? scelta =
+        await showDialog<({int voto, String testo})>(
+          context: context,
+          builder: (context) =>
+              _DialogoRecensione(voto: r.voto, testo: r.testo ?? ""),
+        );
     if (scelta == null || !mounted) return;
     _modificaRecensione(r, scelta.voto, scelta.testo);
   }
@@ -266,14 +307,23 @@ class _StoricoRecensioniState extends State<_StoricoRecensioni> with AzioniPagin
   @override
   Widget build(BuildContext context) {
     if (_recensioni.isEmpty) {
-      return _elencoVuoto(context, _caricamento, Icons.rate_review_outlined, "Non hai ancora scritto recensioni.");
+      return _elencoVuoto(
+        context,
+        _caricamento,
+        Icons.rate_review_outlined,
+        "Non hai ancora scritto recensioni.",
+      );
     }
     return ListView.builder(
       padding: EdgeInsets.all(16),
       itemCount: _recensioni.length + 1,
       itemBuilder: (context, index) {
         if (index == _recensioni.length) {
-          return _caricaAltri(_ultima, _caricamento, () => _carica(daCapo: false));
+          return _caricaAltri(
+            _ultima,
+            _caricamento,
+            () => _carica(daCapo: false),
+          );
         }
         return _riga(_recensioni[index]);
       },
@@ -290,7 +340,9 @@ class _StoricoRecensioniState extends State<_StoricoRecensioni> with AzioniPagin
             ? null
             : () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => DettaglioProdotto(prodotto: prodotto)),
+                  MaterialPageRoute(
+                    builder: (context) => DettaglioProdotto(prodotto: prodotto),
+                  ),
                 );
               },
         child: Padding(
@@ -304,16 +356,25 @@ class _StoricoRecensioniState extends State<_StoricoRecensioni> with AzioniPagin
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(prodotto?.nome ?? "Prodotto non disponibile", style: tema.textTheme.titleMedium),
+                    Text(
+                      prodotto?.nome ?? "Prodotto non disponibile",
+                      style: tema.textTheme.titleMedium,
+                    ),
                     Row(
                       children: [
                         StelleVoto(voto: r.voto, dimensione: 18),
                         SizedBox(width: 8),
-                        Text(formattaData(r.dataRecensione), style: tema.textTheme.bodySmall),
+                        Text(
+                          formattaData(r.dataRecensione),
+                          style: tema.textTheme.bodySmall,
+                        ),
                       ],
                     ),
                     if (r.testo != null && r.testo!.isNotEmpty)
-                      Padding(padding: EdgeInsets.only(top: 6), child: Text(r.testo!)),
+                      Padding(
+                        padding: EdgeInsets.only(top: 6),
+                        child: Text(r.testo!),
+                      ),
                   ],
                 ),
               ),
@@ -333,16 +394,12 @@ class _StoricoRecensioniState extends State<_StoricoRecensioni> with AzioniPagin
       ),
     );
   }
-
-
 }
-
 
 /// Finestra per modificare voto e testo di una recensione: restituisce i nuovi valori, o null se si annulla.
 class _DialogoRecensione extends StatefulWidget {
   final int voto;
   final String testo;
-
 
   _DialogoRecensione({required this.voto, required this.testo});
 
@@ -353,7 +410,6 @@ class _DialogoRecensione extends StatefulWidget {
 class _DialogoRecensioneState extends State<_DialogoRecensione> {
   late int _voto;
   late TextEditingController _testo;
-
 
   @override
   void initState() {
@@ -378,7 +434,10 @@ class _DialogoRecensioneState extends State<_DialogoRecensione> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            StelleVoto(voto: _voto, onChanged: (v) => setState(() => _voto = v)),
+            StelleVoto(
+              voto: _voto,
+              onChanged: (v) => setState(() => _voto = v),
+            ),
             TextField(
               controller: _testo,
               maxLines: 4,
@@ -397,16 +456,14 @@ class _DialogoRecensioneState extends State<_DialogoRecensione> {
           child: Text("Annulla"),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(context).pop((voto: _voto, testo: _testo.text)),
+          onPressed: () =>
+              Navigator.of(context).pop((voto: _voto, testo: _testo.text)),
           child: Text("Salva"),
         ),
       ],
     );
   }
-
-
 }
-
 
 // ================================= OFFERTE =================================
 
@@ -415,14 +472,15 @@ class _StoricoOfferte extends StatefulWidget {
   _StoricoOfferteState createState() => _StoricoOfferteState();
 }
 
-class _StoricoOfferteState extends State<_StoricoOfferte> with AzioniPagina<_StoricoOfferte> {
+class _StoricoOfferteState extends State<_StoricoOfferte>
+    with AzioniPagina<_StoricoOfferte> {
   List<OffertaAsta> _offerte = [];
+
   // l'offerta contiene solo l'id dell'asta: prodotto e stato si leggono a parte (null = asta non disponibile)
   Map<int, Asta?> _aste = {};
   int _pagina = 0;
   bool _ultima = true;
   bool _caricamento = false;
-
 
   @override
   void initState() {
@@ -442,7 +500,11 @@ class _StoricoOfferteState extends State<_StoricoOfferte> with AzioniPagina<_Sto
     }
     await esegui(() async {
       Pagina<OffertaAsta> p = await Model.sharedInstance.getMieOfferte(_pagina);
-      List<int> mancanti = p.contenuto.map((o) => o.idAsta).toSet().where((id) => !_aste.containsKey(id)).toList();
+      List<int> mancanti = p.contenuto
+          .map((o) => o.idAsta)
+          .toSet()
+          .where((id) => !_aste.containsKey(id))
+          .toList();
       List<Asta?> lette = await Future.wait(mancanti.map(_astaOppureNull));
       if (!mounted) return;
       setState(() {
@@ -474,13 +536,21 @@ class _StoricoOfferteState extends State<_StoricoOfferte> with AzioniPagina<_Sto
     }
     return piuAlta
         ? ("Offerta più alta", Colors.green.shade700)
-        : ("Superata: ora ${formattaEuro(asta.prezzoCorrente)}", tema.colorScheme.error);
+        : (
+            "Superata: ora ${formattaEuro(asta.prezzoCorrente)}",
+            tema.colorScheme.error,
+          );
   }
 
   @override
   Widget build(BuildContext context) {
     if (_offerte.isEmpty) {
-      return _elencoVuoto(context, _caricamento, Icons.gavel_rounded, "Non hai ancora fatto offerte.");
+      return _elencoVuoto(
+        context,
+        _caricamento,
+        Icons.gavel_rounded,
+        "Non hai ancora fatto offerte.",
+      );
     }
     ThemeData tema = Theme.of(context);
     return ListView.builder(
@@ -488,7 +558,11 @@ class _StoricoOfferteState extends State<_StoricoOfferte> with AzioniPagina<_Sto
       itemCount: _offerte.length + 1,
       itemBuilder: (context, index) {
         if (index == _offerte.length) {
-          return _caricaAltri(_ultima, _caricamento, () => _carica(daCapo: false));
+          return _caricaAltri(
+            _ultima,
+            _caricamento,
+            () => _carica(daCapo: false),
+          );
         }
         OffertaAsta o = _offerte[index];
         Asta? asta = _aste[o.idAsta];
@@ -506,13 +580,17 @@ class _StoricoOfferteState extends State<_StoricoOfferte> with AzioniPagina<_Sto
             isThreeLine: true,
             trailing: Text(
               formattaEuro(o.importo),
-              style: tema.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: tema.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             onTap: asta == null
                 ? null
                 : () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(builder: (context) => DettaglioAsta(asta: asta)),
+                      MaterialPageRoute(
+                        builder: (context) => DettaglioAsta(asta: asta),
+                      ),
                     );
                   },
           ),
@@ -520,10 +598,7 @@ class _StoricoOfferteState extends State<_StoricoOfferte> with AzioniPagina<_Sto
       },
     );
   }
-
-
 }
-
 
 // ============================ RIEPILOGO ORDINE ============================
 
@@ -532,24 +607,27 @@ class _StoricoOfferteState extends State<_StoricoOfferte> with AzioniPagina<_Sto
 class RiepilogoOrdine extends StatefulWidget {
   final int idOrdine;
   final bool admin;
+  final Ordine?
+  ordine; // se è già disponibile (es. appena restituito dal checkout) non si richiede
 
-
-  RiepilogoOrdine({required this.idOrdine, this.admin = false}) : super();
+  RiepilogoOrdine({required this.idOrdine, this.admin = false, this.ordine})
+    : super();
 
   @override
   _RiepilogoOrdineState createState() => _RiepilogoOrdineState();
 }
 
-class _RiepilogoOrdineState extends State<RiepilogoOrdine> with AzioniPagina<RiepilogoOrdine> {
+class _RiepilogoOrdineState extends State<RiepilogoOrdine>
+    with AzioniPagina<RiepilogoOrdine> {
   Ordine? _ordine;
   bool _caricamento = false;
-  bool _apertura = false;     // true mentre si apre la scheda di un prodotto
-
+  bool _apertura = false; // true mentre si apre la scheda di un prodotto
 
   @override
   void initState() {
     super.initState();
-    _carica();
+    _ordine = widget.ordine;
+    if (_ordine == null) _carica();
   }
 
   Future<void> _carica() => esegui(() async {
@@ -568,7 +646,9 @@ class _RiepilogoOrdineState extends State<RiepilogoOrdine> with AzioniPagina<Rie
     Prodotto prodotto = await Model.sharedInstance.getProdotto(codiceProdotto);
     if (mounted) {
       Navigator.of(context).push(
-        MaterialPageRoute(builder: (context) => DettaglioProdotto(prodotto: prodotto)),
+        MaterialPageRoute(
+          builder: (context) => DettaglioProdotto(prodotto: prodotto),
+        ),
       );
     }
   }, imposta: (v) => _apertura = v);
@@ -610,9 +690,18 @@ class _RiepilogoOrdineState extends State<RiepilogoOrdine> with AzioniPagina<Rie
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.check_circle, color: tema.colorScheme.primary, size: 32),
+                      Icon(
+                        Icons.check_circle,
+                        color: tema.colorScheme.primary,
+                        size: 32,
+                      ),
                       SizedBox(width: 12),
-                      Expanded(child: Text("Riepilogo ordine", style: tema.textTheme.headlineSmall)),
+                      Expanded(
+                        child: Text(
+                          "Riepilogo ordine",
+                          style: tema.textTheme.headlineSmall,
+                        ),
+                      ),
                     ],
                   ),
                   SizedBox(height: 16),
@@ -626,7 +715,12 @@ class _RiepilogoOrdineState extends State<RiepilogoOrdine> with AzioniPagina<Rie
                   Divider(height: 32),
                   Row(
                     children: [
-                      Expanded(child: Text("Totale pagato", style: tema.textTheme.titleLarge)),
+                      Expanded(
+                        child: Text(
+                          "Totale pagato",
+                          style: tema.textTheme.titleLarge,
+                        ),
+                      ),
                       Text(
                         formattaEuro(ordine.totalePagato),
                         style: tema.textTheme.titleLarge?.copyWith(
@@ -637,7 +731,10 @@ class _RiepilogoOrdineState extends State<RiepilogoOrdine> with AzioniPagina<Rie
                     ],
                   ),
                   SizedBox(height: 12),
-                  Text("I prezzi sono quelli applicati al momento dell'acquisto.", style: tema.textTheme.bodySmall),
+                  Text(
+                    "I prezzi sono quelli applicati al momento dell'acquisto.",
+                    style: tema.textTheme.bodySmall,
+                  ),
                 ],
               ),
             ),
@@ -656,7 +753,12 @@ class _RiepilogoOrdineState extends State<RiepilogoOrdine> with AzioniPagina<Rie
         children: [
           SizedBox(
             width: 130,
-            child: Text(etichetta, style: tema.textTheme.bodyMedium?.copyWith(color: tema.colorScheme.outline)),
+            child: Text(
+              etichetta,
+              style: tema.textTheme.bodyMedium?.copyWith(
+                color: tema.colorScheme.outline,
+              ),
+            ),
           ),
           Expanded(child: Text(valore, style: tema.textTheme.bodyMedium)),
         ],
@@ -678,10 +780,16 @@ class _RiepilogoOrdineState extends State<RiepilogoOrdine> with AzioniPagina<Rie
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(riga.nomeProdotto, style: tema.textTheme.bodyLarge),
-                Text("${riga.quantita} × ${formattaEuro(riga.prezzoUnitario)}", style: tema.textTheme.bodySmall),
+                Text(
+                  "${riga.quantita} × ${formattaEuro(riga.prezzoUnitario)}",
+                  style: tema.textTheme.bodySmall,
+                ),
                 if (codice != null)
                   TextButton(
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                    ),
                     onPressed: _apertura ? null : () => _apriProdotto(codice),
                     child: Text("Visualizza prodotto"),
                   ),
@@ -693,6 +801,4 @@ class _RiepilogoOrdineState extends State<RiepilogoOrdine> with AzioniPagina<Rie
       ),
     );
   }
-
-
 }

@@ -7,6 +7,7 @@ import 'package:psw_frontend/model/objects/Pagina.dart';
 import 'package:psw_frontend/model/objects/Prodotto.dart';
 import 'package:psw_frontend/model/support/Constants.dart';
 import 'package:psw_frontend/model/support/Formati.dart';
+import 'package:psw_frontend/UI/pages/CarrelloPagina.dart';
 
 class DettaglioProdotto extends StatefulWidget {
   final Prodotto prodotto;
@@ -30,7 +31,7 @@ class _DettaglioProdottoState extends State<DettaglioProdotto>
 
   int _quantita = 1;
 
-  int _voto = 5;
+  int _voto = 0;
   TextEditingController _testoRecensione = TextEditingController();
 
   bool _invio = false;
@@ -53,7 +54,9 @@ class _DettaglioProdottoState extends State<DettaglioProdotto>
   /// (404: nascosto o esaurito) lo segnala sulla pagina invece di mostrare un errore.
   Future<void> _aggiornaProdotto() async {
     try {
-      Prodotto aggiornato = await Model.sharedInstance.getProdotto(widget.prodotto.codiceProdotto);
+      Prodotto aggiornato = await Model.sharedInstance.getProdotto(
+        widget.prodotto.codiceProdotto,
+      );
       if (mounted) {
         setState(() {
           _prodotto = aggiornato;
@@ -81,7 +84,10 @@ class _DettaglioProdottoState extends State<DettaglioProdotto>
       });
     }
     await esegui(() async {
-      Pagina<Recensione> p = await Model.sharedInstance.getRecensioni(widget.prodotto.codiceProdotto, _paginaRecensioni);
+      Pagina<Recensione> p = await Model.sharedInstance.getRecensioni(
+        widget.prodotto.codiceProdotto,
+        _paginaRecensioni,
+      );
       if (!mounted) return;
       setState(() {
         _recensioni.addAll(p.contenuto);
@@ -92,36 +98,80 @@ class _DettaglioProdottoState extends State<DettaglioProdotto>
   }
 
   /// Bottone "Aggiungi al carrello".
-  Future<void> _aggiungiAlCarrello() => esegui(() async {
-    await Model.sharedInstance.aggiungiAlCarrello(
-      widget.prodotto.codiceProdotto,
-      _quantita,
-    );
-    if (mounted) {
-      setState(() {
-        _quantita = 1;
-      });
-    }
-  }, imposta: (v) => _invio = v,
-      messaggio: "Prodotto aggiunto al carrello con successo.");
+  Future<void> _aggiungiAlCarrello() => esegui(
+    () async {
+      await Model.sharedInstance.aggiungiAlCarrello(
+        widget.prodotto.codiceProdotto,
+        _quantita,
+      );
+      if (mounted) {
+        setState(() {
+          _quantita = 1;
+        });
+      }
+    },
+    imposta: (v) => _invio = v,
+    messaggio: "Prodotto aggiunto al carrello con successo.",
+  );
 
   /// Bottone "Pubblica" della recensione: la nuova recensione va in cima all'elenco.
   Future<void> _inviaRecensione() async {
-    // TODO
+    if(_voto < 1) {
+      mostraErrore(context, "Scegli da 1 a 5 stelle.");
+      return;
+    }
+    await esegui(
+      () async {
+        await Model.sharedInstance.scriviRecensione(
+          widget.prodotto.codiceProdotto,
+          _voto,
+          _testoRecensione.text,
+        );
+        if (mounted) {
+          setState(() {
+            _voto = 0;
+            _testoRecensione.clear();
+          });
+          _caricaRecensioni(daCapo: true);
+        }
+      },
+      imposta: (v) => _invio = v,
+      messaggio: "Recensione inviata con successo",
+    );
   }
 
   /// Cestino di una recensione (solo admin).
   Future<void> _eliminaRecensione(Recensione r) async {
-    if (!await chiediConferma(context, "Eliminare la recensione di ${r.autore ?? 'Anonimo'}?")) return;
+    if (!await chiediConferma(
+      context,
+      "Eliminare la recensione di ${r.autore ?? 'Anonimo'}?",
+    ))
+      return;
     if (!mounted) return;
-    await esegui(() async {
-      await Model.sharedInstance.eliminaRecensioneAdmin(r.idRecensione);
-      if (mounted) {
-        setState(() {
-          _recensioni.remove(r);
-        });
-      }
-    }, imposta: (v) => _invio = v, messaggio: "Recensione eliminata");
+    await esegui(
+      () async {
+        await Model.sharedInstance.eliminaRecensioneAdmin(r.idRecensione);
+        if (mounted) {
+          setState(() {
+            _recensioni.remove(r);
+          });
+        }
+      },
+      imposta: (v) => _invio = v,
+      messaggio: "Recensione eliminata",
+    );
+  }
+
+  /// Apre il carrello sopra questa pagina: da lì si procede all'ordine.
+  void _apriCarrello() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(title: Text("Carrello")),
+          body: CarrelloPagina(),
+        ),
+      ),
+    );
   }
 
   @override
@@ -202,7 +252,8 @@ class _DettaglioProdottoState extends State<DettaglioProdotto>
   Widget _informazioni(Prodotto p) {
     ThemeData tema = Theme.of(context);
     Model model = Model.sharedInstance;
-    bool puoComprare = model.cliente || (!model.loggato && Constants.CARRELLO_OSPITE);
+    bool puoComprare =
+        model.cliente || (!model.loggato && Constants.CARRELLO_OSPITE);
     bool disponibile = p.disponibile && !_fuoriCatalogo;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,9 +288,7 @@ class _DettaglioProdottoState extends State<DettaglioProdotto>
         Text(
           disponibile ? "Disponibile" : "Non disponibile",
           style: TextStyle(
-            color: disponibile
-                ? Colors.green.shade700
-                : tema.colorScheme.error,
+            color: disponibile ? Colors.green.shade700 : tema.colorScheme.error,
           ),
         ),
         if (p.descrizione != null && p.descrizione!.isNotEmpty) ...[
@@ -279,6 +328,22 @@ class _DettaglioProdottoState extends State<DettaglioProdotto>
                 ),
               ),
             ],
+          ),
+        if (puoComprare)
+          ListenableBuilder(
+            listenable: Model.sharedInstance,
+            builder: (context, _) {
+              int articoli = Model.sharedInstance.articoliNelCarrello;
+              if (articoli == 0) return SizedBox.shrink();
+              return Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: OutlinedButton.icon(
+                  onPressed: _apriCarrello,
+                  icon: Icon(Icons.shopping_cart_checkout),
+                  label: Text("Vai al carrello ($articoli)"),
+                ),
+              );
+            },
           ),
         if (!model.loggato)
           Padding(
@@ -347,7 +412,10 @@ class _DettaglioProdottoState extends State<DettaglioProdotto>
                 StelleVoto(voto: r.voto, dimensione: 20),
                 SizedBox(width: 12),
                 Expanded(
-                  child: Text(r.autore ?? "Anonimo", style: tema.textTheme.titleSmall),
+                  child: Text(
+                    r.autore ?? "Anonimo",
+                    style: tema.textTheme.titleSmall,
+                  ),
                 ),
                 Text(
                   formattaData(r.dataRecensione),
