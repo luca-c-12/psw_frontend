@@ -187,17 +187,23 @@ class Model extends ChangeNotifier {
 
   // ========================== CATALOGO E RECENSIONI ==========================
 
-  /// GET /prodotti?nome=...&categoria=...&page=...&size=...   (pubblico)
-  Future<Pagina<Prodotto>> cercaProdotti(String nome, String? categoria, int pagina) async {
+  /// GET /prodotti?nome=...&categoria=...&brand=...&page=...&size=...   (pubblico)
+  Future<Pagina<Prodotto>> cercaProdotti(String nome, String? categoria, String brand, int pagina) async {
     Map<String, String> params = {"page":pagina.toString(), "size":Constants.DIMENSIONE_PAGINA.toString()};
     if(nome.trim().isNotEmpty) {
       params["nome"] = nome.trim();
     }
     if(categoria != null) {
-      String? testo = categoria.trim();
+      String testo = categoria.trim();
       if(testo.isNotEmpty)
         params["categoria"] = testo;
     }
+
+      String value = brand.trim();
+      if(value.isNotEmpty)
+        params["brand"] = value;
+
+
     String risposta = await _restManager.makeGetRequest(Constants.ADDRESS_STORE_SERVER, Constants.REQUEST_PRODOTTI, params);
     return Pagina.fromJson(jsonDecode(risposta), Prodotto.fromJson);
   }

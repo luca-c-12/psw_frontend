@@ -25,6 +25,7 @@ class _CatalogoState extends State<Catalogo> with AzioniPagina<Catalogo>{
   String? _categoria;
 
   TextEditingController _searchFiledController = TextEditingController();
+  TextEditingController _searchByBrandController = TextEditingController();
 
   @override
   void initState() {
@@ -35,6 +36,7 @@ class _CatalogoState extends State<Catalogo> with AzioniPagina<Catalogo>{
   @override
   void dispose() {
     _searchFiledController.dispose();
+    _searchByBrandController.dispose();
     super.dispose();
   }
 
@@ -62,6 +64,15 @@ class _CatalogoState extends State<Catalogo> with AzioniPagina<Catalogo>{
               onSubmit: (value) {
                 _search(daCapo: true);
               },
+            ),
+          ),
+          Flexible(
+            child: InputField(
+              labelText: "Marca",
+              controller: _searchByBrandController,
+              onSubmit: (value) {
+                _search(daCapo: true);
+              }
             ),
           ),
           DropdownButton<String?>(
@@ -169,6 +180,7 @@ class _CatalogoState extends State<Catalogo> with AzioniPagina<Catalogo>{
       Pagina<Prodotto> p = await Model.sharedInstance.cercaProdotti(
         _searchFiledController.text,
         _categoria,
+        _searchByBrandController.text,
         _pagina,
       );
       if (!mounted) return;
