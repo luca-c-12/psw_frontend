@@ -440,15 +440,15 @@ class Model extends ChangeNotifier {
 
   /// POST /admin/prodotti   Body: la Map del form (campi di CreaProdottoRequest) → ProdottoAdminDTO creato.
   Future<ProdottoAdmin> creaProdotto(Map<String, dynamic> dati) async {
-    // TODO
-    throw UnimplementedError("TODO: creaProdotto");
+    String risposta = await _restManager.makePostRequest(Constants.ADDRESS_STORE_SERVER, Constants.REQUEST_ADMIN_PRODOTTI, dati);
+    return ProdottoAdmin.fromJson(jsonDecode(risposta));
   }
 
   /// PUT /admin/prodotti/{codice}   Body: la Map del form (campi di AggiornaProdottoRequest, senza quantità)
   /// → ProdottoAdminDTO aggiornato.
   Future<ProdottoAdmin> aggiornaProdotto(int codiceProdotto, Map<String, dynamic> dati) async {
-    // TODO
-    throw UnimplementedError("TODO: aggiornaProdotto");
+    String risposta = await _restManager.makePutRequest(Constants.ADDRESS_STORE_SERVER, "${Constants.REQUEST_ADMIN_PRODOTTI}/$codiceProdotto", dati);
+    return ProdottoAdmin.fromJson(jsonDecode(risposta));
   }
 
   /// PATCH /admin/prodotti/{codice}/giacenza?quantita=... → ProdottoAdminDTO aggiornato.

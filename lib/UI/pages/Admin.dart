@@ -94,12 +94,28 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
 
   /// Chiamato con i dati del form "Nuovo prodotto": il nuovo prodotto va in cima all'elenco.
   Future<void> _creaProdotto(Map<String, dynamic> dati) async {
-    // TODO
+    await esegui(() async {
+      ProdottoAdmin p = await Model.sharedInstance.creaProdotto(dati);
+      if(mounted) {
+        setState(() {
+          _prodotti.insert(0, p);
+        });
+      }
+    },
+        imposta: (v) => _invio = v,
+        messaggio: "Prodotto aggiunto al catalogo con successo."
+    );
   }
 
   /// Chiamato con i dati del form "Modifica prodotto".
   Future<void> _modificaProdotto(ProdottoAdmin prodotto, Map<String, dynamic> dati) async {
-    // TODO
+    await esegui(() async {
+      ProdottoAdmin p = await Model.sharedInstance.aggiornaProdotto(prodotto.prodotto.codiceProdotto, dati);
+      if(mounted) _sostituisci(prodotto, p);
+    },
+        imposta: (v) => _invio = v,
+        messaggio: "Dati del prodotto aggiornati correttamente."
+    );
   }
 
   /// Bottone "Giacenza" di un prodotto.
