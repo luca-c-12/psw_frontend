@@ -441,6 +441,22 @@ class Model extends ChangeNotifier {
     return Pagina.fromJson(jsonDecode(risposta), ProdottoAdmin.fromJson);
   }
 
+  /// Tutti i prodotti (anche nascosti), pagina dopo pagina: serve alla scelta del prodotto per un'asta.
+  Future<List<ProdottoAdmin>> getTuttiProdottiAdmin() async {
+    List<ProdottoAdmin> tutti = [];
+    int pagina = 0;
+    bool ultima = false;
+    while (!ultima) {
+      Map<String, String> params = {"page": pagina.toString(), "size": "100"};
+      String risposta = await _restManager.makeGetRequest(Constants.ADDRESS_STORE_SERVER, Constants.REQUEST_ADMIN_PRODOTTI, params);
+      Pagina<ProdottoAdmin> p = Pagina.fromJson(jsonDecode(risposta), ProdottoAdmin.fromJson);
+      tutti.addAll(p.contenuto);
+      ultima = p.ultima || p.contenuto.isEmpty;
+      pagina++;
+    }
+    return tutti;
+  }
+
   /// POST /admin/prodotti   Body: la Map del form (campi di CreaProdottoRequest) → ProdottoAdminDTO creato.
   Future<ProdottoAdmin> creaProdotto(Map<String, dynamic> dati) async {
     String risposta = await _restManager.makePostRequest(Constants.ADDRESS_STORE_SERVER, Constants.REQUEST_ADMIN_PRODOTTI, dati);

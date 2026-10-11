@@ -28,6 +28,7 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
   // aste in corso e programmate, insieme
   List<Asta> _aste = [];
   bool _caricamentoAste = false;
+  List<ProdottoAdmin> _candidatiAsta = []; // prodotti offerti nel form "Nuova asta" (tutto il catalogo)
 
   List<Ordine> _ordini = [];
   int _paginaOrdini = 0;
@@ -182,14 +183,14 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
   /// Chiamato con i dati del form "Nuova asta".
   Future<void> _creaAsta(Map<String, dynamic> dati) async {
     int indice = -1;
-    for (int i = 0; i < _prodotti.length; i++) {
-      if (_prodotti[i].prodotto.codiceProdotto == dati['codiceProdotto']) {
+    for (int i = 0; i < _candidatiAsta.length; i++) {
+      if (_candidatiAsta[i].prodotto.codiceProdotto == dati['codiceProdotto']) {
         indice = i;
         break;
       }
     }
-    String msg = (indice != -1 && _prodotti[indice].visibile)
-        ? "Asta creata correttamente. ${_prodotti[indice].prodotto.nome} è stato rimosso dal catalogo."
+    String msg = (indice != -1 && _candidatiAsta[indice].visibile)
+        ? "Asta creata correttamente. ${_candidatiAsta[indice].prodotto.nome} è stato rimosso dal catalogo."
         : "Asta creata correttamente.";
     await esegui(
       () async {
@@ -229,8 +230,15 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
   }
 
   Future<void> _apriFormAsta() async {
+    // la tendina offre tutto il catalogo, non solo le pagine caricate nella sezione Prodotti
+    List<ProdottoAdmin>? tutti;
+    await esegui(() async {
+      tutti = await Model.sharedInstance.getTuttiProdottiAdmin();
+    }, imposta: (v) => _invio = v);
+    List<ProdottoAdmin>? caricati = tutti;
+    if (caricati == null || !mounted) return;
     // il backend nasconde il prodotto quando crea l'asta; servono pezzi disponibili e nessuna asta già aperta
-    List<Prodotto> scelte = _prodotti
+    _candidatiAsta = caricati
         .where(
           (p) =>
               p.quantita > 0 &&
@@ -238,11 +246,10 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
                 (a) => a.prodotto.codiceProdotto == p.prodotto.codiceProdotto,
               ),
         )
-        .map((p) => p.prodotto)
         .toList();
     Map<String, dynamic>? dati = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => _FormAsta(prodotti: scelte),
+      builder: (context) => _FormAsta(prodotti: _candidatiAsta),
     );
     if (dati != null && mounted) {
       _creaAsta(dati);
@@ -464,7 +471,7 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
               ),
               SizedBox(width: 8),
               FilledButton.icon(
-                onPressed: _apriFormAsta,
+                onPressed: _invio ? null : _apriFormAsta,
                 icon: Icon(Icons.add),
                 label: Text("Nuova asta"),
               ),
@@ -984,7 +991,7 @@ class _FormProdottoState extends State<_FormProdotto> {
 
 /// Form "Nuova asta" (campi di CreaAstaRequest): restituisce la Map per il backend, o null se si annulla.
 class _FormAsta extends StatefulWidget {
-  final List<Prodotto> prodotti;
+  final List<ProdottoAdmin> prodotti;
 
   _FormAsta({required this.prodotti});
 
@@ -999,10 +1006,13 @@ class _FormAstaState extends State<_FormAsta> {
   DateTime? _dataInizio; // null = l'asta parte subito
   DateTime? _dataFine;
   String? _erroreDate;
+  TextEditingController _ricerca = TextEditingController();
+  String _filtro = "";
 
   @override
   void dispose() {
     _prezzoBase.dispose();
+    _ricerca.dispose();
     super.dispose();
   }
 
@@ -1062,6 +1072,10 @@ class _FormAstaState extends State<_FormAsta> {
   @override
   Widget build(BuildContext context) {
     ThemeData tema = Theme.of(context);
+    // il prodotto già scelto resta sempre nell'elenco, altrimenti la tendina andrebbe in errore
+    List<ProdottoAdmin> elenco = widget.prodotti
+        .where((p) => p.prodotto.codiceProdotto == _codiceProdotto || p.prodotto.nome.toLowerCase().contains(_filtro))
+        .toList();
     return AlertDialog(
       title: Text("Nuova asta"),
       content: SizedBox(
@@ -1078,15 +1092,44 @@ class _FormAstaState extends State<_FormAsta> {
                     "Nessun prodotto adatto: servono pezzi disponibili e nessuna asta già aperta sul prodotto.",
                     style: TextStyle(color: tema.colorScheme.error),
                   ),
+                TextField(
+                  controller: _ricerca,
+                  decoration: InputDecoration(
+                    labelText: "Cerca prodotto (${widget.prodotti.length} disponibili)",
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                  onChanged: (testo) => setState(() => _filtro = testo.trim().toLowerCase()),
+                ),
                 DropdownButtonFormField<int>(
                   initialValue: _codiceProdotto,
                   isExpanded: true,
+                  itemHeight: 56,
                   decoration: InputDecoration(labelText: "Prodotto *"),
-                  items: widget.prodotti
+                  items: elenco
                       .map(
-                        (p) => DropdownMenuItem<int>(
-                          value: p.codiceProdotto,
-                          child: Text(p.nome, overflow: TextOverflow.ellipsis),
+                        (pa) => DropdownMenuItem<int>(
+                          value: pa.prodotto.codiceProdotto,
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: ImmagineProdotto(url: pa.prodotto.urlImmagine, altezza: 40),
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Text(pa.prodotto.nome, overflow: TextOverflow.ellipsis),
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                "${pa.quantita} pz${pa.visibile ? ' · in catalogo' : ''}",
+                                style: tema.textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
                         ),
                       )
                       .toList(),
