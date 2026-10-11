@@ -6,11 +6,9 @@ import 'package:psw_frontend/model/objects/Asta.dart';
 import 'package:psw_frontend/model/objects/Pagina.dart';
 import 'package:psw_frontend/model/support/Formati.dart';
 
-
 /// Pagina di un'asta, con le offerte ricevute e il campo per offrire.
 class DettaglioAsta extends StatefulWidget {
   final Asta asta;
-
 
   DettaglioAsta({required this.asta}) : super();
 
@@ -18,13 +16,13 @@ class DettaglioAsta extends StatefulWidget {
   _DettaglioAstaState createState() => _DettaglioAstaState();
 }
 
-class _DettaglioAstaState extends State<DettaglioAsta> with AzioniPagina<DettaglioAsta> {
-  late Asta _asta;                      // si parte da quella ricevuta dall'elenco, poi si aggiorna
+class _DettaglioAstaState extends State<DettaglioAsta>
+    with AzioniPagina<DettaglioAsta> {
+  late Asta _asta; // si parte da quella ricevuta dall'elenco, poi si aggiorna
   List<OffertaAsta> _offerte = [];
   bool _caricamento = false;
   bool _invio = false;
   TextEditingController _importo = TextEditingController();
-
 
   @override
   void initState() {
@@ -39,16 +37,43 @@ class _DettaglioAstaState extends State<DettaglioAsta> with AzioniPagina<Dettagl
     super.dispose();
   }
 
-
   /// Ricarica l'asta (prezzo corrente, stato) e la prima pagina delle sue offerte.
   /// È anche il bottone di aggiornamento in alto.
   Future<void> _aggiorna() async {
-    // TODO
+    await esegui(() async {
+      List<dynamic> lista = await Future.wait([
+        Model.sharedInstance.getAsta(_asta.idAsta),
+        Model.sharedInstance.getOfferte(_asta.idAsta, 0),
+      ]);
+      Pagina<OffertaAsta> pagina = lista[1] as Pagina<OffertaAsta>;
+      if (mounted) {
+        setState(() {
+          _asta = lista[0] as Asta;
+          _offerte = pagina.contenuto;
+        });
+      }
+    }, imposta: (v) => _caricamento = v);
   }
 
   /// Bottone "Offri".
   Future<void> _offri() async {
-    // TODO
+    if (_invio) return;
+    double? importo = leggiImporto(_importo.text);
+    if (importo == null || !importoValido(_importo.text)) {
+      mostraErrore(context, "Inserire un importo valido.");
+      return;
+    }
+    await esegui(() async {
+      await Model.sharedInstance.faiOfferta(_asta.idAsta, importo);
+      if(mounted) {
+        _importo.clear();
+        _aggiorna();
+      }
+    },
+        imposta: (v) => _invio = v,
+        messaggio: "Offerta inviata correttamente.",
+        dopoErrore: _aggiorna
+    );
   }
 
   @override
@@ -76,7 +101,10 @@ class _DettaglioAstaState extends State<DettaglioAsta> with AzioniPagina<Dettagl
                   builder: (context, vincoli) {
                     Widget immagine = ClipRRect(
                       borderRadius: BorderRadius.circular(20),
-                      child: ImmagineProdotto(url: _asta.prodotto.urlImmagine, altezza: 300),
+                      child: ImmagineProdotto(
+                        url: _asta.prodotto.urlImmagine,
+                        altezza: 300,
+                      ),
                     );
                     if (vincoli.maxWidth > 700) {
                       return Row(
@@ -99,23 +127,36 @@ class _DettaglioAstaState extends State<DettaglioAsta> with AzioniPagina<Dettagl
                   },
                 ),
                 SizedBox(height: 24),
-                if (Model.sharedInstance.cliente && _asta.inCorso && !_asta.chiusa) _formOfferta(),
+                if (Model.sharedInstance.cliente &&
+                    _asta.inCorso &&
+                    !_asta.chiusa)
+                  _formOfferta(),
                 SizedBox(height: 24),
-                Text("Offerte", style: Theme.of(context).textTheme.headlineSmall),
+                Text(
+                  "Offerte",
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
                 SizedBox(height: 8),
                 if (_offerte.isEmpty)
-                  Text(_caricamento ? "Caricamento..." : "Nessuna offerta per ora."),
-                ..._offerte.map((o) => Card(
-                  child: ListTile(
-                    leading: CircleAvatar(child: Icon(Icons.person_rounded)),
-                    title: Text(o.offerente ?? "Anonimo"),
-                    subtitle: Text(formattaDataOra(o.dataOfferta)),
-                    trailing: Text(
-                      formattaEuro(o.importo),
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  Text(
+                    _caricamento
+                        ? "Caricamento..."
+                        : "Nessuna offerta per ora.",
+                  ),
+                ..._offerte.map(
+                  (o) => Card(
+                    child: ListTile(
+                      leading: CircleAvatar(child: Icon(Icons.person_rounded)),
+                      title: Text(o.offerente ?? "Anonimo"),
+                      subtitle: Text(formattaDataOra(o.dataOfferta)),
+                      trailing: Text(
+                        formattaEuro(o.importo),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
-                )),
+                ),
               ],
             ),
           ),
@@ -128,11 +169,18 @@ class _DettaglioAstaState extends State<DettaglioAsta> with AzioniPagina<Dettagl
     ThemeData tema = Theme.of(context);
     Color coloreStato = _asta.inCorso
         ? Colors.green.shade700
-        : (_asta.stato == "PROGRAMMATA" ? tema.colorScheme.primary : tema.colorScheme.outline);
+        : (_asta.stato == "PROGRAMMATA"
+              ? tema.colorScheme.primary
+              : tema.colorScheme.outline);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(_asta.prodotto.nome, style: tema.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+        Text(
+          _asta.prodotto.nome,
+          style: tema.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         SizedBox(height: 8),
         Chip(
           avatar: Icon(Icons.circle, size: 12, color: coloreStato),
@@ -145,17 +193,24 @@ class _DettaglioAstaState extends State<DettaglioAsta> with AzioniPagina<Dettagl
         ),
         Text(
           formattaEuro(_asta.prezzoCorrente),
-          style: tema.textTheme.headlineMedium?.copyWith(color: tema.colorScheme.primary, fontWeight: FontWeight.bold),
+          style: tema.textTheme.headlineMedium?.copyWith(
+            color: tema.colorScheme.primary,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         if (_asta.offertaMassima != null)
-          Text("di ${_asta.offertaMassima!.offerente ?? 'Anonimo'} · prezzo base ${formattaEuro(_asta.prezzoBase)}"),
+          Text(
+            "di ${_asta.offertaMassima!.offerente ?? 'Anonimo'} · prezzo base ${formattaEuro(_asta.prezzoBase)}",
+          ),
         SizedBox(height: 12),
         Text("Inizio: ${formattaDataOra(_asta.dataInizio)}"),
         Text("Fine: ${formattaDataOra(_asta.dataFine)}"),
         if (_asta.chiusa) ...[
           SizedBox(height: 12),
           Text(
-            _asta.vincitore != null ? "Vinta da ${_asta.vincitore}" : "Nessun vincitore",
+            _asta.vincitore != null
+                ? "Vinta da ${_asta.vincitore}"
+                : "Nessun vincitore",
             style: tema.textTheme.titleMedium,
           ),
         ],
@@ -199,6 +254,4 @@ class _DettaglioAstaState extends State<DettaglioAsta> with AzioniPagina<Dettagl
       ),
     );
   }
-
-
 }

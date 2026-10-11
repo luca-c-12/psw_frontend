@@ -396,8 +396,11 @@ class Model extends ChangeNotifier {
   /// POST /aste/{id}/offerte   Body: {"importo": ...} → AstaDTO aggiornata.
   /// 409 se l'offerta è troppo bassa, l'asta non è in corso, manca l'indirizzo o il saldo non basta.
   Future<Asta> faiOfferta(int idAsta, double importo) async {
-    // TODO
-    throw UnimplementedError("TODO: faiOfferta");
+    Map<String, double> body = {
+      "importo" : importo
+    };
+    String risposta = await _restManager.makePostRequest(Constants.ADDRESS_STORE_SERVER, "${Constants.REQUEST_ASTE}/$idAsta/offerte", body);
+    return Asta.fromJson(jsonDecode(risposta));
   }
 
 
@@ -467,8 +470,8 @@ class Model extends ChangeNotifier {
   /// POST /admin/aste   Body: la Map del form (campi di CreaAstaRequest) → AstaDTO creata.
   /// 409 se il prodotto non è nascosto con giacenza o ha già un'asta; 400 se le date non sono nel futuro.
   Future<Asta> creaAsta(Map<String, dynamic> dati) async {
-    // TODO
-    throw UnimplementedError("TODO: creaAsta");
+    String risposta = await _restManager.makePostRequest(Constants.ADDRESS_STORE_SERVER, Constants.REQUEST_ADMIN_ASTE, dati);
+    return Asta.fromJson(jsonDecode(risposta));
   }
 
   /// DELETE /admin/aste/{id} → 204; 409 se l'asta è già conclusa.

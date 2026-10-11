@@ -11,7 +11,6 @@ import 'package:psw_frontend/model/objects/Pagina.dart';
 import 'package:psw_frontend/model/objects/Prodotto.dart';
 import 'package:psw_frontend/model/support/Formati.dart';
 
-
 /// Area dell'amministratore: prodotti, aste, ordini e utenti.
 class Admin extends StatefulWidget {
   Admin() : super();
@@ -42,8 +41,7 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
   bool _ultimaUtenti = true;
   bool _caricamentoUtenti = false;
 
-  bool _invio = false;      // true mentre è in corso una modifica
-
+  bool _invio = false; // true mentre è in corso una modifica
 
   @override
   void initState() {
@@ -53,7 +51,6 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
     _caricaOrdini(daCapo: true);
     _caricaUtenti(daCapo: true);
   }
-
 
   // ================================ PRODOTTI ================================
 
@@ -68,7 +65,9 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
       });
     }
     await esegui(() async {
-      Pagina<ProdottoAdmin> p = await Model.sharedInstance.getProdottiAdmin(_paginaProdotti);
+      Pagina<ProdottoAdmin> p = await Model.sharedInstance.getProdottiAdmin(
+        _paginaProdotti,
+      );
       if (!mounted) return;
       setState(() {
         _prodotti.addAll(p.contenuto);
@@ -87,34 +86,46 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
   }
 
   /// Interruttore Visibile/Nascosto di un prodotto.
-  Future<void> _cambiaVisibilita(ProdottoAdmin prodotto, bool visibile) => esegui(() async {
-    ProdottoAdmin aggiornato = await Model.sharedInstance.impostaVisibilita(prodotto.prodotto.codiceProdotto, visibile);
-    if (mounted) _sostituisci(prodotto, aggiornato);
-  }, imposta: (v) => _invio = v);
+  Future<void> _cambiaVisibilita(ProdottoAdmin prodotto, bool visibile) =>
+      esegui(() async {
+        ProdottoAdmin aggiornato = await Model.sharedInstance.impostaVisibilita(
+          prodotto.prodotto.codiceProdotto,
+          visibile,
+        );
+        if (mounted) _sostituisci(prodotto, aggiornato);
+      }, imposta: (v) => _invio = v);
 
   /// Chiamato con i dati del form "Nuovo prodotto": il nuovo prodotto va in cima all'elenco.
   Future<void> _creaProdotto(Map<String, dynamic> dati) async {
-    await esegui(() async {
-      ProdottoAdmin p = await Model.sharedInstance.creaProdotto(dati);
-      if(mounted) {
-        setState(() {
-          _prodotti.insert(0, p);
-        });
-      }
-    },
-        imposta: (v) => _invio = v,
-        messaggio: "Prodotto aggiunto al catalogo con successo."
+    await esegui(
+      () async {
+        ProdottoAdmin p = await Model.sharedInstance.creaProdotto(dati);
+        if (mounted) {
+          setState(() {
+            _prodotti.insert(0, p);
+          });
+        }
+      },
+      imposta: (v) => _invio = v,
+      messaggio: "Prodotto aggiunto al catalogo con successo.",
     );
   }
 
   /// Chiamato con i dati del form "Modifica prodotto".
-  Future<void> _modificaProdotto(ProdottoAdmin prodotto, Map<String, dynamic> dati) async {
-    await esegui(() async {
-      ProdottoAdmin p = await Model.sharedInstance.aggiornaProdotto(prodotto.prodotto.codiceProdotto, dati);
-      if(mounted) _sostituisci(prodotto, p);
-    },
-        imposta: (v) => _invio = v,
-        messaggio: "Dati del prodotto aggiornati correttamente."
+  Future<void> _modificaProdotto(
+    ProdottoAdmin prodotto,
+    Map<String, dynamic> dati,
+  ) async {
+    await esegui(
+      () async {
+        ProdottoAdmin p = await Model.sharedInstance.aggiornaProdotto(
+          prodotto.prodotto.codiceProdotto,
+          dati,
+        );
+        if (mounted) _sostituisci(prodotto, p);
+      },
+      imposta: (v) => _invio = v,
+      messaggio: "Dati del prodotto aggiornati correttamente.",
     );
   }
 
@@ -122,13 +133,23 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
   Future<void> _impostaGiacenza(ProdottoAdmin prodotto) async {
     int? quantita = await showDialog<int>(
       context: context,
-      builder: (context) => _DialogoGiacenza(nomeProdotto: prodotto.prodotto.nome, quantitaAttuale: prodotto.quantita),
+      builder: (context) => _DialogoGiacenza(
+        nomeProdotto: prodotto.prodotto.nome,
+        quantitaAttuale: prodotto.quantita,
+      ),
     );
     if (quantita == null || quantita == prodotto.quantita || !mounted) return;
-    await esegui(() async {
-      ProdottoAdmin aggiornato = await Model.sharedInstance.impostaGiacenza(prodotto.prodotto.codiceProdotto, quantita);
-      if (mounted) _sostituisci(prodotto, aggiornato);
-    }, imposta: (v) => _invio = v, messaggio: "Giacenza aggiornata");
+    await esegui(
+      () async {
+        ProdottoAdmin aggiornato = await Model.sharedInstance.impostaGiacenza(
+          prodotto.prodotto.codiceProdotto,
+          quantita,
+        );
+        if (mounted) _sostituisci(prodotto, aggiornato);
+      },
+      imposta: (v) => _invio = v,
+      messaggio: "Giacenza aggiornata",
+    );
   }
 
   Future<void> _apriFormProdotto({ProdottoAdmin? daModificare}) async {
@@ -143,7 +164,6 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
       _modificaProdotto(daModificare, dati);
     }
   }
-
 
   // ================================== ASTE ==================================
 
@@ -161,26 +181,65 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
 
   /// Chiamato con i dati del form "Nuova asta".
   Future<void> _creaAsta(Map<String, dynamic> dati) async {
-    // TODO
+    int indice = -1;
+    for (int i = 0; i < _prodotti.length; i++) {
+      if (_prodotti[i].prodotto.codiceProdotto == dati['codiceProdotto']) {
+        indice = i;
+        break;
+      }
+    }
+    String msg = (indice != -1 && _prodotti[indice].visibile)
+        ? "Asta creata correttamente. ${_prodotti[indice].prodotto.nome} è stato rimosso dal catalogo."
+        : "Asta creata correttamente.";
+    await esegui(
+      () async {
+        Asta a = await Model.sharedInstance.creaAsta(dati);
+        if (mounted) {
+          setState(() {
+            _aste.insert(0, a);
+          });
+          _caricaProdotti(daCapo: true);
+        }
+      },
+      imposta: (v) => _invio = v,
+      messaggio: msg,
+    );
   }
 
   /// Bottone "Annulla" di un'asta.
   Future<void> _annullaAsta(Asta asta) async {
-    if (!await chiediConferma(context, "Annullare l'asta di ${asta.prodotto.nome}?")) return;
+    if (!await chiediConferma(
+      context,
+      "Annullare l'asta di ${asta.prodotto.nome}?",
+    ))
+      return;
     if (!mounted) return;
-    await esegui(() async {
-      await Model.sharedInstance.annullaAsta(asta.idAsta);
-      if (mounted) {
-        setState(() {
-          _aste.remove(asta);
-        });
-      }
-    }, imposta: (v) => _invio = v, messaggio: "Asta annullata");
+    await esegui(
+      () async {
+        await Model.sharedInstance.annullaAsta(asta.idAsta);
+        if (mounted) {
+          setState(() {
+            _aste.remove(asta);
+          });
+        }
+      },
+      imposta: (v) => _invio = v,
+      messaggio: "Asta annullata",
+    );
   }
 
   Future<void> _apriFormAsta() async {
-    // si mette all'asta solo un prodotto nascosto e con pezzi disponibili (regola del backend)
-    List<Prodotto> scelte = _prodotti.where((p) => !p.visibile && p.quantita > 0).map((p) => p.prodotto).toList();
+    // il backend nasconde il prodotto quando crea l'asta; servono pezzi disponibili e nessuna asta già aperta
+    List<Prodotto> scelte = _prodotti
+        .where(
+          (p) =>
+              p.quantita > 0 &&
+              !_aste.any(
+                (a) => a.prodotto.codiceProdotto == p.prodotto.codiceProdotto,
+              ),
+        )
+        .map((p) => p.prodotto)
+        .toList();
     Map<String, dynamic>? dati = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => _FormAsta(prodotti: scelte),
@@ -189,7 +248,6 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
       _creaAsta(dati);
     }
   }
-
 
   // ================================= ORDINI =================================
 
@@ -214,7 +272,6 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
       }
     });
   }
-
 
   // ================================= UTENTI =================================
 
@@ -248,7 +305,6 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
       builder: (context) => _SchedaUtente(utente: u),
     );
   }, imposta: (v) => _invio = v);
-
 
   // ================================= GRAFICA =================================
 
@@ -312,7 +368,10 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
           padding: EdgeInsets.all(12),
           child: Row(
             children: [
-              Text("${_prodotti.length} prodotti caricati", style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                "${_prodotti.length} prodotti caricati",
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               Spacer(),
               FilledButton.icon(
                 onPressed: () => _apriFormProdotto(),
@@ -324,13 +383,21 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
         ),
         Expanded(
           child: _prodotti.isEmpty
-              ? Center(child: _caricamentoProdotti ? CircularProgressIndicator() : Text("Nessun prodotto."))
+              ? Center(
+                  child: _caricamentoProdotti
+                      ? CircularProgressIndicator()
+                      : Text("Nessun prodotto."),
+                )
               : ListView.builder(
                   padding: EdgeInsets.symmetric(horizontal: 12),
                   itemCount: _prodotti.length + 1,
                   itemBuilder: (context, index) {
                     if (index == _prodotti.length) {
-                      return _caricaAltri(_ultimaProdotti, _caricamentoProdotti, () => _caricaProdotti(daCapo: false));
+                      return _caricaAltri(
+                        _ultimaProdotti,
+                        _caricamentoProdotti,
+                        () => _caricaProdotti(daCapo: false),
+                      );
                     }
                     return _rigaProdotto(_prodotti[index]);
                   },
@@ -346,13 +413,17 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
       child: ListTile(
         leading: _miniatura(p.urlImmagine),
         title: Text(p.nome),
-        subtitle: Text("${formattaEuro(p.prezzo)} · ${pa.quantita} pz · ${p.nomeCategoria}"),
+        subtitle: Text(
+          "${formattaEuro(p.prezzo)} · ${pa.quantita} pz · ${p.nomeCategoria}",
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
               tooltip: "Modifica",
-              onPressed: _invio ? null : () => _apriFormProdotto(daModificare: pa),
+              onPressed: _invio
+                  ? null
+                  : () => _apriFormProdotto(daModificare: pa),
               icon: Icon(Icons.edit_outlined),
             ),
             IconButton(
@@ -364,7 +435,9 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
             Text(pa.visibile ? "Visibile" : "Nascosto"),
             Switch(
               value: pa.visibile,
-              onChanged: _invio ? null : (valore) => _cambiaVisibilita(pa, valore),
+              onChanged: _invio
+                  ? null
+                  : (valore) => _cambiaVisibilita(pa, valore),
             ),
           ],
         ),
@@ -379,7 +452,10 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
           padding: EdgeInsets.all(12),
           child: Row(
             children: [
-              Text("Aste in corso e programmate", style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                "Aste in corso e programmate",
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               Spacer(),
               IconButton(
                 tooltip: "Aggiorna",
@@ -397,25 +473,35 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
         ),
         Expanded(
           child: _aste.isEmpty
-              ? Center(child: _caricamentoAste ? CircularProgressIndicator() : Text("Nessuna asta attiva."))
+              ? Center(
+                  child: _caricamentoAste
+                      ? CircularProgressIndicator()
+                      : Text("Nessuna asta attiva."),
+                )
               : ListView(
                   padding: EdgeInsets.symmetric(horizontal: 12),
-                  children: _aste.map((asta) => Card(
-                    child: ListTile(
-                      leading: _miniatura(asta.prodotto.urlImmagine),
-                      title: Text(asta.prodotto.nome),
-                      subtitle: Text(
-                        "${asta.nomeStato} · ${formattaEuro(asta.prezzoCorrente)}\n"
-                        "dal ${formattaDataOra(asta.dataInizio)} al ${formattaDataOra(asta.dataFine)}",
-                      ),
-                      isThreeLine: true,
-                      trailing: OutlinedButton.icon(
-                        onPressed: _invio ? null : () => _annullaAsta(asta),
-                        icon: Icon(Icons.cancel_outlined),
-                        label: Text("Annulla"),
-                      ),
-                    ),
-                  )).toList(),
+                  children: _aste
+                      .map(
+                        (asta) => Card(
+                          child: ListTile(
+                            leading: _miniatura(asta.prodotto.urlImmagine),
+                            title: Text(asta.prodotto.nome),
+                            subtitle: Text(
+                              "${asta.nomeStato} · ${formattaEuro(asta.prezzoCorrente)}\n"
+                              "dal ${formattaDataOra(asta.dataInizio)} al ${formattaDataOra(asta.dataFine)}",
+                            ),
+                            isThreeLine: true,
+                            trailing: OutlinedButton.icon(
+                              onPressed: _invio
+                                  ? null
+                                  : () => _annullaAsta(asta),
+                              icon: Icon(Icons.cancel_outlined),
+                              label: Text("Annulla"),
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
                 ),
         ),
       ],
@@ -446,7 +532,9 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
                 label: Text(formattaData(_al)),
               ),
               FilledButton.icon(
-                onPressed: _caricamentoOrdini ? null : () => _caricaOrdini(daCapo: true),
+                onPressed: _caricamentoOrdini
+                    ? null
+                    : () => _caricaOrdini(daCapo: true),
                 icon: Icon(Icons.search_rounded),
                 label: Text("Cerca"),
               ),
@@ -455,27 +543,44 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
         ),
         Expanded(
           child: _ordini.isEmpty
-              ? Center(child: _caricamentoOrdini ? CircularProgressIndicator() : Text("Nessun ordine nel periodo."))
+              ? Center(
+                  child: _caricamentoOrdini
+                      ? CircularProgressIndicator()
+                      : Text("Nessun ordine nel periodo."),
+                )
               : ListView.builder(
                   padding: EdgeInsets.symmetric(horizontal: 12),
                   itemCount: _ordini.length + 1,
                   itemBuilder: (context, index) {
                     if (index == _ordini.length) {
-                      return _caricaAltri(_ultimaOrdini, _caricamentoOrdini, () => _caricaOrdini(daCapo: false));
+                      return _caricaAltri(
+                        _ultimaOrdini,
+                        _caricamentoOrdini,
+                        () => _caricaOrdini(daCapo: false),
+                      );
                     }
                     Ordine ordine = _ordini[index];
                     return Card(
                       child: ListTile(
-                        leading: CircleAvatar(child: Icon(Icons.receipt_long_outlined)),
+                        leading: CircleAvatar(
+                          child: Icon(Icons.receipt_long_outlined),
+                        ),
                         title: Text("Ordine n. ${ordine.idOrdine}"),
                         subtitle: Text(formattaDataOra(ordine.dataOrdine)),
                         trailing: Text(
                           formattaEuro(ordine.totalePagato),
-                          style: tema.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          style: tema.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         onTap: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(builder: (context) => RiepilogoOrdine(idOrdine: ordine.idOrdine, admin: true)),
+                            MaterialPageRoute(
+                              builder: (context) => RiepilogoOrdine(
+                                idOrdine: ordine.idOrdine,
+                                admin: true,
+                              ),
+                            ),
                           );
                         },
                       ),
@@ -495,11 +600,16 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
           padding: EdgeInsets.all(12),
           child: Row(
             children: [
-              Text("${_utenti.length} utenti caricati", style: tema.textTheme.titleMedium),
+              Text(
+                "${_utenti.length} utenti caricati",
+                style: tema.textTheme.titleMedium,
+              ),
               Spacer(),
               IconButton(
                 tooltip: "Aggiorna",
-                onPressed: _caricamentoUtenti ? null : () => _caricaUtenti(daCapo: true),
+                onPressed: _caricamentoUtenti
+                    ? null
+                    : () => _caricaUtenti(daCapo: true),
                 icon: Icon(Icons.refresh_rounded),
               ),
             ],
@@ -507,29 +617,50 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
         ),
         Expanded(
           child: _utenti.isEmpty
-              ? Center(child: _caricamentoUtenti ? CircularProgressIndicator() : Text("Nessun utente."))
+              ? Center(
+                  child: _caricamentoUtenti
+                      ? CircularProgressIndicator()
+                      : Text("Nessun utente."),
+                )
               : ListView.builder(
                   padding: EdgeInsets.symmetric(horizontal: 12),
                   itemCount: _utenti.length + 1,
                   itemBuilder: (context, index) {
                     if (index == _utenti.length) {
-                      return _caricaAltri(_ultimaUtenti, _caricamentoUtenti, () => _caricaUtenti(daCapo: false));
+                      return _caricaAltri(
+                        _ultimaUtenti,
+                        _caricamentoUtenti,
+                        () => _caricaUtenti(daCapo: false),
+                      );
                     }
                     Utente u = _utenti[index];
-                    String nome = u.nomeCompleto.isEmpty ? (u.email ?? "Utente ${u.idUtente}") : u.nomeCompleto;
+                    String nome = u.nomeCompleto.isEmpty
+                        ? (u.email ?? "Utente ${u.idUtente}")
+                        : u.nomeCompleto;
                     return Card(
                       child: ListTile(
-                        leading: CircleAvatar(child: Text(nome.isEmpty ? "?" : nome.substring(0, 1).toUpperCase())),
+                        leading: CircleAvatar(
+                          child: Text(
+                            nome.isEmpty
+                                ? "?"
+                                : nome.substring(0, 1).toUpperCase(),
+                          ),
+                        ),
                         title: Text(nome),
                         subtitle: Text(u.email ?? ""),
                         trailing: Wrap(
                           spacing: 8,
                           children: [
-                            Chip(label: Text(u.ruolo == "ADMIN" ? "Admin" : "Cliente")),
+                            Chip(
+                              label: Text(
+                                u.ruolo == "ADMIN" ? "Admin" : "Cliente",
+                              ),
+                            ),
                             if (!u.attivo)
                               Chip(
                                 label: Text("Disattivato"),
-                                backgroundColor: tema.colorScheme.errorContainer,
+                                backgroundColor:
+                                    tema.colorScheme.errorContainer,
                               ),
                           ],
                         ),
@@ -542,17 +673,13 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
       ],
     );
   }
-
-
 }
-
 
 // ================================== DIALOGHI ==================================
 
 /// Scheda di un utente.
 class _SchedaUtente extends StatelessWidget {
   final Utente utente;
-
 
   _SchedaUtente({required this.utente});
 
@@ -563,14 +690,24 @@ class _SchedaUtente extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 140, child: Text(etichetta, style: TextStyle(color: Theme.of(context).colorScheme.outline))),
+          SizedBox(
+            width: 140,
+            child: Text(
+              etichetta,
+              style: TextStyle(color: Theme.of(context).colorScheme.outline),
+            ),
+          ),
           Expanded(child: Text(valore)),
         ],
       ),
     );
     DateTime? registrazione = utente.dataRegistrazione;
     return AlertDialog(
-      title: Text(utente.nomeCompleto.isEmpty ? "Utente ${utente.idUtente}" : utente.nomeCompleto),
+      title: Text(
+        utente.nomeCompleto.isEmpty
+            ? "Utente ${utente.idUtente}"
+            : utente.nomeCompleto,
+      ),
       content: SizedBox(
         width: 420,
         child: Column(
@@ -578,8 +715,14 @@ class _SchedaUtente extends StatelessWidget {
           children: [
             voce("Id", "${utente.idUtente}"),
             voce("Email", utente.email ?? "—"),
-            voce("Ruolo", utente.ruolo == "ADMIN" ? "Amministratore" : "Cliente"),
-            voce("Registrato il", registrazione == null ? "—" : formattaDataOra(registrazione)),
+            voce(
+              "Ruolo",
+              utente.ruolo == "ADMIN" ? "Amministratore" : "Cliente",
+            ),
+            voce(
+              "Registrato il",
+              registrazione == null ? "—" : formattaDataOra(registrazione),
+            ),
             voce("Stato", utente.attivo ? "Attivo" : "Disattivato"),
           ],
         ),
@@ -592,16 +735,12 @@ class _SchedaUtente extends StatelessWidget {
       ],
     );
   }
-
-
 }
-
 
 /// Finestra per scrivere la nuova giacenza: restituisce il numero, o null se si annulla.
 class _DialogoGiacenza extends StatefulWidget {
   final String nomeProdotto;
   final int quantitaAttuale;
-
 
   _DialogoGiacenza({required this.nomeProdotto, required this.quantitaAttuale});
 
@@ -611,7 +750,6 @@ class _DialogoGiacenza extends StatefulWidget {
 
 class _DialogoGiacenzaState extends State<_DialogoGiacenza> {
   late TextEditingController _campo;
-
 
   @override
   void initState() {
@@ -657,17 +795,13 @@ class _DialogoGiacenzaState extends State<_DialogoGiacenza> {
       ],
     );
   }
-
-
 }
-
 
 /// Form "Nuovo prodotto" (campi di CreaProdottoRequest) oppure, con [iniziale],
 /// "Modifica prodotto" (campi di AggiornaProdottoRequest: senza quantità, che ha il suo PATCH).
 /// Restituisce la Map per il backend, o null se si annulla.
 class _FormProdotto extends StatefulWidget {
   final ProdottoAdmin? iniziale;
-
 
   _FormProdotto({this.iniziale});
 
@@ -686,7 +820,6 @@ class _FormProdottoState extends State<_FormProdotto> {
   String? _categoria;
 
   bool get _modifica => widget.iniziale != null;
-
 
   @override
   void initState() {
@@ -749,7 +882,9 @@ class _FormProdottoState extends State<_FormProdotto> {
                 TextFormField(
                   controller: _nome,
                   decoration: InputDecoration(labelText: "Nome *"),
-                  validator: (v) => v == null || v.trim().isEmpty ? "Il nome è obbligatorio" : null,
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? "Il nome è obbligatorio"
+                      : null,
                 ),
                 TextFormField(
                   controller: _brand,
@@ -767,10 +902,14 @@ class _FormProdottoState extends State<_FormProdotto> {
                       child: TextFormField(
                         controller: _prezzo,
                         decoration: InputDecoration(labelText: "Prezzo (€) *"),
-                        keyboardType: TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                         validator: (v) {
                           double? prezzo = leggiImporto(v ?? "");
-                          return !importoValido(v ?? "") || prezzo == null || prezzo <= 0
+                          return !importoValido(v ?? "") ||
+                                  prezzo == null ||
+                                  prezzo <= 0
                               ? "Prezzo non valido (max 2 decimali)"
                               : null;
                         },
@@ -785,7 +924,9 @@ class _FormProdottoState extends State<_FormProdotto> {
                           keyboardType: TextInputType.number,
                           validator: (v) {
                             int? quantita = int.tryParse((v ?? "").trim());
-                            return quantita == null || quantita < 0 ? "Quantità non valida" : null;
+                            return quantita == null || quantita < 0
+                                ? "Quantità non valida"
+                                : null;
                           },
                         ),
                       ),
@@ -796,7 +937,12 @@ class _FormProdottoState extends State<_FormProdotto> {
                   initialValue: _categoria,
                   decoration: InputDecoration(labelText: "Categoria *"),
                   items: CATEGORIE.entries
-                      .map((e) => DropdownMenuItem<String>(value: e.key, child: Text(e.value)))
+                      .map(
+                        (e) => DropdownMenuItem<String>(
+                          value: e.key,
+                          child: Text(e.value),
+                        ),
+                      )
                       .toList(),
                   onChanged: (valore) {
                     setState(() {
@@ -807,7 +953,9 @@ class _FormProdottoState extends State<_FormProdotto> {
                 ),
                 TextFormField(
                   controller: _urlImmagine,
-                  decoration: InputDecoration(labelText: "URL immagine (http://... o https://...)"),
+                  decoration: InputDecoration(
+                    labelText: "URL immagine (http://... o https://...)",
+                  ),
                   validator: (v) {
                     String url = (v ?? "").trim();
                     return url.isEmpty || RegExp(r'^https?://.+').hasMatch(url)
@@ -832,15 +980,11 @@ class _FormProdottoState extends State<_FormProdotto> {
       ],
     );
   }
-
-
 }
-
 
 /// Form "Nuova asta" (campi di CreaAstaRequest): restituisce la Map per il backend, o null se si annulla.
 class _FormAsta extends StatefulWidget {
   final List<Prodotto> prodotti;
-
 
   _FormAsta({required this.prodotti});
 
@@ -852,10 +996,9 @@ class _FormAstaState extends State<_FormAsta> {
   final GlobalKey<FormState> _chiaveForm = GlobalKey<FormState>();
   TextEditingController _prezzoBase = TextEditingController();
   int? _codiceProdotto;
-  DateTime? _dataInizio;        // null = l'asta parte subito
+  DateTime? _dataInizio; // null = l'asta parte subito
   DateTime? _dataFine;
   String? _erroreDate;
-
 
   @override
   void dispose() {
@@ -879,7 +1022,13 @@ class _FormAstaState extends State<_FormAsta> {
       initialTime: TimeOfDay.fromDateTime(base),
     );
     if (ora == null) return null;
-    return DateTime(giorno.year, giorno.month, giorno.day, ora.hour, ora.minute);
+    return DateTime(
+      giorno.year,
+      giorno.month,
+      giorno.day,
+      ora.hour,
+      ora.minute,
+    );
   }
 
   void _conferma() {
@@ -893,7 +1042,8 @@ class _FormAstaState extends State<_FormAsta> {
     } else if (!fine.isAfter(adesso)) {
       errore = "La fine deve essere nel futuro.";
     } else if (inizio != null && !inizio.isAfter(adesso)) {
-      errore = "L'inizio deve essere nel futuro (oppure lascialo vuoto per partire subito).";
+      errore =
+          "L'inizio deve essere nel futuro (oppure lascialo vuoto per partire subito).";
     } else if (inizio != null && !fine.isAfter(inizio)) {
       errore = "La fine deve essere dopo l'inizio.";
     }
@@ -925,8 +1075,7 @@ class _FormAstaState extends State<_FormAsta> {
               children: [
                 if (widget.prodotti.isEmpty)
                   Text(
-                    "Nessun prodotto adatto: un prodotto va all'asta solo se è nascosto e ha pezzi disponibili. "
-                    "Nascondine uno nella sezione Prodotti.",
+                    "Nessun prodotto adatto: servono pezzi disponibili e nessuna asta già aperta sul prodotto.",
                     style: TextStyle(color: tema.colorScheme.error),
                   ),
                 DropdownButtonFormField<int>(
@@ -934,10 +1083,12 @@ class _FormAstaState extends State<_FormAsta> {
                   isExpanded: true,
                   decoration: InputDecoration(labelText: "Prodotto *"),
                   items: widget.prodotti
-                      .map((p) => DropdownMenuItem<int>(
-                            value: p.codiceProdotto,
-                            child: Text(p.nome, overflow: TextOverflow.ellipsis),
-                          ))
+                      .map(
+                        (p) => DropdownMenuItem<int>(
+                          value: p.codiceProdotto,
+                          child: Text(p.nome, overflow: TextOverflow.ellipsis),
+                        ),
+                      )
                       .toList(),
                   onChanged: (valore) {
                     setState(() {
@@ -952,7 +1103,9 @@ class _FormAstaState extends State<_FormAsta> {
                   keyboardType: TextInputType.numberWithOptions(decimal: true),
                   validator: (v) {
                     double? prezzo = leggiImporto(v ?? "");
-                    return !importoValido(v ?? "") || prezzo == null || prezzo <= 0
+                    return !importoValido(v ?? "") ||
+                            prezzo == null ||
+                            prezzo <= 0
                         ? "Prezzo non valido (max 2 decimali)"
                         : null;
                   },
@@ -962,7 +1115,11 @@ class _FormAstaState extends State<_FormAsta> {
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.play_circle_outline),
                   title: Text("Inizio"),
-                  subtitle: Text(_dataInizio == null ? "Subito" : formattaDataOra(_dataInizio!)),
+                  subtitle: Text(
+                    _dataInizio == null
+                        ? "Subito"
+                        : formattaDataOra(_dataInizio!),
+                  ),
                   trailing: Wrap(
                     children: [
                       if (_dataInizio != null)
@@ -974,7 +1131,8 @@ class _FormAstaState extends State<_FormAsta> {
                       TextButton(
                         onPressed: () async {
                           DateTime? scelta = await _scegliDataOra(_dataInizio);
-                          if (scelta != null) setState(() => _dataInizio = scelta);
+                          if (scelta != null)
+                            setState(() => _dataInizio = scelta);
                         },
                         child: Text("Scegli"),
                       ),
@@ -985,7 +1143,11 @@ class _FormAstaState extends State<_FormAsta> {
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.flag_outlined),
                   title: Text("Fine *"),
-                  subtitle: Text(_dataFine == null ? "Da scegliere" : formattaDataOra(_dataFine!)),
+                  subtitle: Text(
+                    _dataFine == null
+                        ? "Da scegliere"
+                        : formattaDataOra(_dataFine!),
+                  ),
                   trailing: TextButton(
                     onPressed: () async {
                       DateTime? scelta = await _scegliDataOra(_dataFine);
@@ -995,7 +1157,10 @@ class _FormAstaState extends State<_FormAsta> {
                   ),
                 ),
                 if (_erroreDate != null)
-                  Text(_erroreDate!, style: TextStyle(color: tema.colorScheme.error)),
+                  Text(
+                    _erroreDate!,
+                    style: TextStyle(color: tema.colorScheme.error),
+                  ),
               ],
             ),
           ),
@@ -1006,13 +1171,8 @@ class _FormAstaState extends State<_FormAsta> {
           onPressed: () => Navigator.of(context).pop(),
           child: Text("Annulla"),
         ),
-        FilledButton(
-          onPressed: _conferma,
-          child: Text("Crea"),
-        ),
+        FilledButton(onPressed: _conferma, child: Text("Crea")),
       ],
     );
   }
-
-
 }
