@@ -20,6 +20,7 @@ dependencies:
   http: ^1.2.0
   # apertura di pagine web: registrazione e account su Keycloak (come nell'esempio)
   url_launcher: ^6.3.0
+  shared_preferences: ^2.3.0
 
 dev_dependencies:
   flutter_test:

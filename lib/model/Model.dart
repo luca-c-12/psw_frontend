@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:psw_frontend/UI/widgets/Avvisi.dart';
 import 'package:psw_frontend/model/managers/RestManager.dart';
 import 'package:psw_frontend/model/objects/Asta.dart';
 import 'package:psw_frontend/model/objects/AuthenticationData.dart';
@@ -12,6 +14,7 @@ import 'package:psw_frontend/model/objects/Prodotto.dart';
 import 'package:psw_frontend/model/support/Constants.dart';
 import 'package:psw_frontend/model/support/Formati.dart';
 import 'package:psw_frontend/model/support/LogInResult.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 /// Unico punto da cui l'interfaccia parla con backend e Keycloak.
@@ -104,7 +107,20 @@ class Model extends ChangeNotifier {
       });
       notifyListeners();
       if (cliente) {
-        _precaricaCarrello();
+        if(_carrello != null && _carrello!.righe.isNotEmpty) {
+          try {
+            await _unisciCarrelloOspite();
+            try { (await SharedPreferences.getInstance()).remove(Constants.CHIAVE_CARRELLO_OSPITE); } catch (_) {}
+          }catch(e) {
+            _precaricaCarrello();
+          }
+        }else {
+          _precaricaCarrello();
+        }
+      }else {
+        try { (await SharedPreferences.getInstance()).remove(Constants.CHIAVE_CARRELLO_OSPITE); } catch (_) {}
+        _carrello = null;
+        notifyListeners();
       }
       return LogInResult.logged;
     }
@@ -263,12 +279,14 @@ class Model extends ChangeNotifier {
 
   /// GET /carrello → CarrelloDTO
   Future<Carrello> caricaCarrello() async {
+    if(!loggato) return _carrello ?? new Carrello(idCarrello: 0, righe: [], numeroArticoli: 0, totale: 0);
     return _carrelloDa(_restManager.makeGetRequest(Constants.ADDRESS_STORE_SERVER, Constants.REQUEST_CARRELLO));
   }
 
   /// POST /carrello/prodotti   Body: {"codiceProdotto": ..., "quantita": 1..99} → CarrelloDTO.
   /// Se il prodotto c'era già le quantità si sommano; 409 se la giacenza non basta.
   Future<Carrello> aggiungiAlCarrello(int codiceProdotto, int quantita) async {
+    if(!loggato) return _aggiungiOspite(codiceProdotto, quantita);
     Map<String, int> body = {
       "codiceProdotto":codiceProdotto,
       "quantita":quantita
@@ -278,6 +296,7 @@ class Model extends ChangeNotifier {
 
   /// PATCH /carrello/prodotti/{codice}?quantita=... → CarrelloDTO (quantità 0 = rimuovi).
   Future<Carrello> aggiornaQuantita(int codiceProdotto, int quantita) async {
+    if(!loggato) return _aggiornaOspite(codiceProdotto, quantita);
     Map<String, String> params = {
       "quantita":quantita.toString()
 
@@ -287,12 +306,16 @@ class Model extends ChangeNotifier {
 
   /// DELETE /carrello/prodotti/{codice} → CarrelloDTO
   Future<Carrello> rimuoviDalCarrello(int codiceProdotto) async {
+    if(!loggato) return _aggiornaOspite(codiceProdotto, 0);
     return _carrelloDa(_restManager.makeDeleteRequest(Constants.ADDRESS_STORE_SERVER, "${Constants.REQUEST_CARRELLO_PRODOTTI}/$codiceProdotto"));
   }
 
   /// DELETE /carrello → CarrelloDTO vuoto.
-  Future<Carrello> svuotaCarrello() =>
-      _carrelloDa(_restManager.makeDeleteRequest(Constants.ADDRESS_STORE_SERVER, Constants.REQUEST_CARRELLO));
+  Future<Carrello> svuotaCarrello() async {
+    if(!loggato) return _salvaOspite([]);
+    return _carrelloDa(_restManager.makeDeleteRequest(Constants.ADDRESS_STORE_SERVER, Constants.REQUEST_CARRELLO));
+  }
+
 
   /// POST /ordini   Body: carrelloVisto.toCheckoutRequest() → OrdineDTO.
   /// 409 se nel frattempo il carrello è cambiato, se il saldo non basta o manca l'indirizzo.
@@ -320,24 +343,6 @@ class Model extends ChangeNotifier {
 
 
   // ============================= CARRELLO OSPITE =============================
-  // Chi non ha fatto login riempie un carrello che vive solo qui, in memoria. Al login viene unito
-  // a quello del backend con POST /carrello/merge: il backend somma le quantità alle righe che ha già,
-  // salta i prodotti non più in catalogo e non supera la giacenza.
-  //
-  // Idea: il carrello ospite è un normale Carrello salvato in _carrello (idCarrello 0, righe costruite
-  // qui), così CarrelloPagina e il numerino sulla tab funzionano senza cambiare niente.
-  // Il login con il form non ricarica la pagina del browser, quindi il carrello arriva intatto al merge.
-  //
-  // Da fare:
-  //  1. i tre metodi qui sotto. Totale, subtotali e numero di articoli vanno ricalcolati a ogni modifica;
-  //     "disponibile" di una riga si può prendere dal prodotto.
-  //  2. in caricaCarrello, aggiungiAlCarrello, aggiornaQuantita, rimuoviDalCarrello e svuotaCarrello:
-  //     se !loggato si lavora sul carrello in memoria invece di chiamare il backend.
-  //  3. in logIn: per un cliente, _unisciCarrelloOspite() al posto di _precaricaCarrello().
-  //     Se il merge fallisce il login non deve fallire (al massimo il carrello ospite si perde).
-  //  4. Constants.CARRELLO_OSPITE = true.
-
-  //  4. Constants.CARRELLO_OSPITE = true.
 
   /// Ricalcola subtotali, totale e numero di articoli del carrello ospite, lo salva e avvisa le pagine.
   Carrello _salvaOspite(List<RigaCarrello> righe) {
@@ -350,6 +355,7 @@ class Model extends ChangeNotifier {
     }
     Carrello c = new Carrello(idCarrello: 0, righe: righe, numeroArticoli: numeroArticoli, totale: totale);
     _aggiornaCarrello(c);
+    _memorizzaOspite(righe);
     return c;
   }
 
@@ -357,8 +363,16 @@ class Model extends ChangeNotifier {
   /// Aggiunge un prodotto al carrello ospite, o ne somma la quantità se c'è già.
   /// I dati del prodotto (nome, prezzo, immagine) si prendono con getProdotto.
   Future<Carrello> _aggiungiOspite(int codiceProdotto, int quantita) async {
-    // TODO
-    throw UnimplementedError("TODO: _aggiungiOspite");
+    Prodotto p = await getProdotto(codiceProdotto);
+    List<RigaCarrello> righe = List.of(_carrello?.righe ?? []);
+    int i = righe.indexWhere((r) => r.codiceProdotto == codiceProdotto);
+    if(i != -1) {
+      int quantitaAggiornata = min(quantita+righe[i].quantita, 99);
+      righe[i].quantita = quantitaAggiornata;
+    }else {
+      righe.add(new RigaCarrello(idRecordCarrello: 0, prodotto: p, quantita: min(quantita, 99), subtotale: p.prezzo*min(quantita, 99), disponibile: p.disponibile));
+    }
+    return _salvaOspite(righe);
   }
 
   /// Imposta la quantità di una riga del carrello ospite (0 = la toglie).
@@ -370,20 +384,57 @@ class Model extends ChangeNotifier {
         righe.removeAt(i);
         return _salvaOspite(righe);
       }
-      int quantitaAggiornata;
-      if(quantita >= 99) quantitaAggiornata = 99;
-      else quantitaAggiornata = quantita;
-      righe[i].quantita = quantitaAggiornata;
+      righe[i].quantita = min(quantita, 99);
     }
-
     return _salvaOspite(righe);
   }
 
   /// POST /carrello/merge   Body: {"righe": [{"codiceProdotto": ..., "quantita": ...}]} (max 50 righe)
   /// → CarrelloDTO, che da quel momento è il carrello del cliente.
   Future<Carrello> _unisciCarrelloOspite() async {
-    // TODO
-    throw UnimplementedError("TODO: _unisciCarrelloOspite");
+    List<RigaCarrello> righe = _carrello?.righe ?? [];
+    Map<String, dynamic> body = {
+      "righe" : righe.take(50).map((r) => {"codiceProdotto": r.codiceProdotto, "quantita": r.quantita}).toList()
+    };
+    return _carrelloDa(_restManager.makePostRequest(Constants.ADDRESS_STORE_SERVER, Constants.REQUEST_CARRELLO_MERGE, body));
+  }
+
+
+  Future<void> _memorizzaOspite(List<RigaCarrello> righe) async {
+    Map<String, dynamic> carrelloOspite = {
+      "righe" : righe.take(50).map((r) => {"codiceProdotto": r.codiceProdotto, "quantita": r.quantita}).toList()
+    };
+    String mappa = jsonEncode(carrelloOspite);
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString(Constants.CHIAVE_CARRELLO_OSPITE, mappa);
+    }catch(_) {/* il salvataggio è un extra: senza, il carrello resta solo in memoria */}
+  }
+
+  Future<void> ripristinaCarrelloOspite() async {
+    if(loggato) return;
+    List<RigaCarrello> righe = [];
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? lista = prefs.getString(Constants.CHIAVE_CARRELLO_OSPITE);
+      if(lista == null) return;
+      Map<String, dynamic> mappa = jsonDecode(lista);
+      List<dynamic> datiSalvati = mappa["righe"] as List;
+      for (dynamic element in datiSalvati) {
+        try {
+          Prodotto p = await getProdotto(element["codiceProdotto"]);
+          int quantita = element["quantita"];
+          RigaCarrello r = new RigaCarrello(idRecordCarrello: 0, prodotto: p, quantita: min(quantita,99), subtotale: p.prezzo*min(quantita,99), disponibile: p.disponibile);
+          righe.add(r);
+        }catch(_) {
+          continue;
+        }
+      }
+      if(righe.isNotEmpty) _salvaOspite(righe);
+    } catch(_) {
+      try { (await SharedPreferences.getInstance()).remove(Constants.CHIAVE_CARRELLO_OSPITE); } catch (_) {}
+    }
+
   }
 
 

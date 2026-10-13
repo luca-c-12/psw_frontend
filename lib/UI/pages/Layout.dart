@@ -22,6 +22,12 @@ class Layout extends StatefulWidget {
 class _LayoutState extends State<Layout> {
   late String title;
 
+  @override
+  void initState() {
+    super.initState();
+    Model.sharedInstance.ripristinaCarrelloOspite();
+  }
+
 
   _LayoutState(String title) {
     this.title = title;

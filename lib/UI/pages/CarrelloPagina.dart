@@ -7,6 +7,7 @@ import 'package:psw_frontend/model/Model.dart';
 import 'package:psw_frontend/model/objects/Carrello.dart';
 import 'package:psw_frontend/model/support/Formati.dart';
 import 'package:psw_frontend/UI/pages/DettaglioProdotto.dart';
+import 'package:psw_frontend/UI/pages/LogIn.dart';
 import 'package:psw_frontend/UI/widgets/ProductCard.dart';
 import 'package:flutter/services.dart';
 
@@ -104,10 +105,18 @@ class _CarrelloPaginaState extends State<CarrelloPagina>
     );
   }
 
-  /// Per chi non ha fatto login: porta alla tab "Accedi" (l'ultima).
+  /// Per chi non ha fatto login: porta alla tab "Accedi" (l'ultima). Se il carrello è stato aperto
+  /// sopra un'altra pagina (es. "Vai al carrello" dal dettaglio prodotto) le tab non ci sono:
+  /// si apre il login sopra il carrello, che dopo l'accesso torna visibile già unito.
   void _vaiAlLogin() {
     TabController? tab = DefaultTabController.maybeOf(context);
-    tab?.animateTo(tab.length - 1);
+    if (tab != null) {
+      tab.animateTo(tab.length - 1);
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => _PaginaAccesso()),
+    );
   }
 
   @override
@@ -400,6 +409,47 @@ class _DialogoQuantitaState extends State<_DialogoQuantita> {
         ),
         FilledButton(onPressed: _conferma, child: Text("Aggiorna")),
       ],
+    );
+  }
+}
+
+
+/// Login aperto sopra il carrello: si chiude da solo appena l'accesso riesce.
+/// Un cliente torna al carrello; un admin (che il carrello non ce l'ha) torna alla home.
+class _PaginaAccesso extends StatefulWidget {
+  @override
+  _PaginaAccessoState createState() => _PaginaAccessoState();
+}
+
+class _PaginaAccessoState extends State<_PaginaAccesso> {
+  @override
+  void initState() {
+    super.initState();
+    Model.sharedInstance.addListener(_controllaAccesso);
+  }
+
+  @override
+  void dispose() {
+    Model.sharedInstance.removeListener(_controllaAccesso);
+    super.dispose();
+  }
+
+  void _controllaAccesso() {
+    Model model = Model.sharedInstance;
+    if (!model.loggato || !mounted) return;
+    Model.sharedInstance.removeListener(_controllaAccesso);
+    if (model.cliente) {
+      Navigator.of(context).pop();
+    } else {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("Accedi")),
+      body: LogIn(),
     );
   }
 }

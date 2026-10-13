@@ -35,8 +35,9 @@ class Constants {
   static final int DIMENSIONE_PAGINA = 12;
 
   /// Mostra tab Carrello e "Aggiungi al carrello" anche a chi non ha fatto login.
-  /// Da mettere a true quando il carrello ospite nel Model è pronto.
-  static const bool CARRELLO_OSPITE = false;
+  static const bool CARRELLO_OSPITE = true;
+
+  static const String CHIAVE_CARRELLO_OSPITE = "carrello_ospite";
 
   // links
   static final String LINK_REGISTRAZIONE = "http://" + ADDRESS_AUTHENTICATION_SERVER + "/realms/" + REALM
