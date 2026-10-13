@@ -23,6 +23,53 @@ class _LogInState extends State<LogIn> {
     super.initState();
   }
 
+  /// L'account è disattivato: l'accesso resta in sospeso finché l'utente non sceglie se riattivarlo.
+  Future<void> _proponiRiattivazione() async {
+    bool? riattiva = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text("Account disattivato"),
+        content: Text(
+          "Il tuo account è disattivato. Vuoi riattivarlo ed entrare? "
+          "Ordini, recensioni e saldo sono ancora quelli di prima.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text("No"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text("Riattiva ed entra"),
+          ),
+        ],
+      ),
+    );
+    if (riattiva != true || !mounted) {
+      await Model.sharedInstance.annullaAccessoSospeso();
+      return;
+    }
+    setState(() {
+      _isLoading = true;
+    });
+    LogInResult result = await Model.sharedInstance.riattivaAccount();
+    // dopo l'accesso questa tab sparisce, quindi la pagina potrebbe non esistere più
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+    });
+    if (result != LogInResult.logged) {
+      showDialog(
+        context: context,
+        builder: (context) => MessageDialog(
+          titleText: "Ops...",
+          bodyText: "Non è stato possibile riattivare l'account.\n${Model.sharedInstance.ultimoErroreLogin ?? ''}",
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -51,7 +98,6 @@ class _LogInState extends State<LogIn> {
                     ExpandableLogInButton(
                       textOuterButton: "Accedi con il tuo account",
                       onSubmit: (String email, String password) async {
-                        print("login: email='$email' password lunga ${password.length}");
                         setState(() {
                           _isLoading = true;
                         });
@@ -88,6 +134,9 @@ class _LogInState extends State<LogIn> {
                         }
                         else if ( result == LogInResult.error_not_fully_setupped ) {
                           await launchUrl(Uri.parse(Constants.LINK_ACCOUNT));
+                        }
+                        else if ( result == LogInResult.account_disattivato ) {
+                          await _proponiRiattivazione();
                         }
                         else {
                           showDialog(

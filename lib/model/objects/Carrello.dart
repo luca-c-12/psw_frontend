@@ -68,17 +68,21 @@ class RigaCarrello {
 /// OrdineDTO (completo) oppure OrdineSintesiDTO (solo id, data e totale: indirizzo null e righe vuote).
 class Ordine {
   int idOrdine;
+  int? idCliente;               // chi ha fatto l'ordine (null nelle risposte che non lo contengono)
+  String? nomeCliente;          // solo in OrdineSintesiDTO, per l'elenco dell'admin
   DateTime dataOrdine;
   double totalePagato;
   String? indirizzoSpedizione;
   List<LineaOrdine> righe;      // nel JSON si chiama "prodottiAcquistati"
 
 
-  Ordine({required this.idOrdine, required this.dataOrdine, required this.totalePagato, this.indirizzoSpedizione, this.righe = const []});
+  Ordine({required this.idOrdine, this.idCliente, this.nomeCliente, required this.dataOrdine, required this.totalePagato, this.indirizzoSpedizione, this.righe = const []});
 
   factory Ordine.fromJson(Map<String, dynamic> json) {
     return Ordine(
       idOrdine: json['idOrdine'],
+      idCliente: json['idCliente'],
+      nomeCliente: json['nomeCliente'],
       dataOrdine: DateTime.parse(json['dataOrdine']),
       totalePagato: (json['totalePagato'] as num).toDouble(),
       indirizzoSpedizione: json['indirizzoSpedizione'],

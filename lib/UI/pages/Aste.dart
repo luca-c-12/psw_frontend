@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:psw_frontend/UI/pages/DettaglioAsta.dart';
 import 'package:psw_frontend/UI/widgets/Avvisi.dart';
+import 'package:psw_frontend/UI/widgets/Footer.dart';
 import 'package:psw_frontend/UI/widgets/InputField.dart';
 import 'package:psw_frontend/UI/widgets/ProductCard.dart';
 import 'package:psw_frontend/UI/widgets/buttons/CircularIconButton.dart';
@@ -158,45 +159,53 @@ class _AsteState extends State<Aste> with AzioniPagina<Aste> {
             : Text(_programmate ? "Nessuna asta programmata." : "Nessuna asta in corso."),
       );
     }
-    return Column(
-      children: [
-        Expanded(
-          child: GridView.builder(
-            padding: EdgeInsets.all(12),
+    // griglia, "Carica altre" e footer scorrono insieme, come in una pagina web
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.all(12),
+          sliver: SliverGrid(
             gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 240,
               childAspectRatio: 0.66,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
             ),
-            itemCount: _aste.length,
-            itemBuilder: (context, index) {
-              Asta asta = _aste[index];
-              return ProductCard(
-                product: asta.prodotto,
-                prezzo: asta.prezzoCorrente,
-                mostraDisponibilita: false,
-                etichetta: _programmate
-                    ? "Inizia il ${formattaDataOra(asta.dataInizio)}"
-                    : "Termina il ${formattaDataOra(asta.dataFine)}",
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => DettaglioAsta(asta: asta)),
-                  );
-                },
-              );
-            },
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                Asta asta = _aste[index];
+                return ProductCard(
+                  product: asta.prodotto,
+                  prezzo: asta.prezzoCorrente,
+                  mostraDisponibilita: false,
+                  etichetta: _programmate
+                      ? "Inizia il ${formattaDataOra(asta.dataInizio)}"
+                      : "Termina il ${formattaDataOra(asta.dataFine)}",
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => DettaglioAsta(asta: asta)),
+                    );
+                  },
+                );
+              },
+              childCount: _aste.length,
+            ),
           ),
         ),
         if (!_ultima)
-          StadiumButton(
-            title: "Carica altre",
-            icon: Icons.expand_more_rounded,
-            disabled: _caricamento,
-            onPressed: () {
-              _carica(daCapo: false);
-            },
+          SliverToBoxAdapter(
+            child: Center(
+              child: StadiumButton(
+                title: "Carica altre",
+                icon: Icons.expand_more_rounded,
+                disabled: _caricamento,
+                onPressed: () {
+                  _carica(daCapo: false);
+                },
+              ),
+            ),
           ),
+        SliverToBoxAdapter(child: Footer()),
       ],
     );
   }

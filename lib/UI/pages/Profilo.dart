@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:psw_frontend/UI/pages/Storico.dart';
 import 'package:psw_frontend/UI/widgets/Avvisi.dart';
+import 'package:psw_frontend/UI/widgets/Footer.dart';
 import 'package:psw_frontend/model/Model.dart';
 import 'package:psw_frontend/model/objects/Cliente.dart';
 import 'package:psw_frontend/model/support/Formati.dart';
@@ -290,7 +291,7 @@ class _ProfiloState extends State<Profilo> with AzioniPagina<Profilo> {
                         ),
                       ),
                       subtitle: Text(
-                        "Gli ordini restano registrati, ma non potrai più accedere.",
+                        "Ordini, recensioni e saldo restano registrati. Al prossimo accesso ti verrà chiesto se riattivarlo.",
                         style: TextStyle(
                           color: tema.colorScheme.onErrorContainer,
                         ),
@@ -304,6 +305,7 @@ class _ProfiloState extends State<Profilo> with AzioniPagina<Profilo> {
                       ),
                     ),
                   ),
+                  Footer(),
                 ],
               ),
             ),

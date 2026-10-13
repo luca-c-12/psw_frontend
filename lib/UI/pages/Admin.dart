@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:psw_frontend/UI/pages/DettaglioAsta.dart';
+import 'package:psw_frontend/UI/pages/DettaglioProdotto.dart';
 import 'package:psw_frontend/UI/pages/Storico.dart';
 import 'package:psw_frontend/UI/widgets/Avvisi.dart';
 import 'package:psw_frontend/UI/widgets/ProductCard.dart';
+import 'package:psw_frontend/UI/widgets/SchedaUtente.dart';
 import 'package:psw_frontend/model/Model.dart';
 import 'package:psw_frontend/model/objects/Asta.dart';
 import 'package:psw_frontend/model/objects/Carrello.dart';
@@ -153,6 +156,15 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
     );
   }
 
+  /// Clic su un prodotto: apre la sua pagina (per un prodotto nascosto compare "Non disponibile").
+  void _apriProdotto(ProdottoAdmin prodotto) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DettaglioProdotto(prodotto: prodotto.prodotto),
+      ),
+    );
+  }
+
   Future<void> _apriFormProdotto({ProdottoAdmin? daModificare}) async {
     Map<String, dynamic>? dati = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -227,6 +239,14 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
       imposta: (v) => _invio = v,
       messaggio: "Asta annullata",
     );
+  }
+
+  /// Clic su un'asta: apre la sua pagina con le offerte.
+  Future<void> _apriAsta(Asta asta) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => DettaglioAsta(asta: asta)),
+    );
+    if (mounted) _caricaAste();
   }
 
   Future<void> _apriFormAsta() async {
@@ -325,12 +345,12 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
   }
 
   /// Rilegge un utente dal backend e ne mostra la scheda.
-  Future<void> _apriUtente(Utente utente) => esegui(() async {
-    Utente u = await Model.sharedInstance.getUtente(utente.idUtente);
+  Future<void> _apriUtente(int idUtente) => esegui(() async {
+    Utente u = await Model.sharedInstance.getUtente(idUtente);
     if (!mounted) return;
     showDialog(
       context: context,
-      builder: (context) => _SchedaUtente(utente: u),
+      builder: (context) => SchedaUtente(utente: u),
     );
   }, imposta: (v) => _invio = v);
 
@@ -402,7 +422,7 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
               ),
               Spacer(),
               FilledButton.icon(
-                onPressed: () => _apriFormProdotto(),
+                onPressed: _invio ? null : () => _apriFormProdotto(),
                 icon: Icon(Icons.add),
                 label: Text("Nuovo prodotto"),
               ),
@@ -439,6 +459,7 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
     Prodotto p = pa.prodotto;
     return Card(
       child: ListTile(
+        onTap: () => _apriProdotto(pa),
         leading: _miniatura(p.urlImmagine),
         title: Text(p.nome),
         subtitle: Text(
@@ -512,6 +533,7 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
                       .map(
                         (asta) => Card(
                           child: ListTile(
+                            onTap: () => _apriAsta(asta),
                             leading: _miniatura(asta.prodotto.urlImmagine),
                             title: Text(asta.prodotto.nome),
                             subtitle: Text(
@@ -588,13 +610,26 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
                       );
                     }
                     Ordine ordine = _ordini[index];
+                    int? idCliente = ordine.idCliente;
                     return Card(
                       child: ListTile(
                         leading: CircleAvatar(
                           child: Icon(Icons.receipt_long_outlined),
                         ),
                         title: Text("Ordine n. ${ordine.idOrdine}"),
-                        subtitle: Text(formattaDataOra(ordine.dataOrdine)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(formattaDataOra(ordine.dataOrdine)),
+                            // il nome apre la scheda del cliente, il resto della riga il riepilogo
+                            if (idCliente != null)
+                              LinkUtente(
+                                testo: ordine.nomeCliente ?? "Cliente n. $idCliente",
+                                idUtente: idCliente,
+                              ),
+                          ],
+                        ),
                         trailing: Text(
                           formattaEuro(ordine.totalePagato),
                           style: tema.textTheme.titleMedium?.copyWith(
@@ -692,7 +727,7 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
                               ),
                           ],
                         ),
-                        onTap: _invio ? null : () => _apriUtente(u),
+                        onTap: _invio ? null : () => _apriUtente(u.idUtente),
                       ),
                     );
                   },
@@ -704,66 +739,6 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
 }
 
 // ================================== DIALOGHI ==================================
-
-/// Scheda di un utente.
-class _SchedaUtente extends StatelessWidget {
-  final Utente utente;
-
-  _SchedaUtente({required this.utente});
-
-  @override
-  Widget build(BuildContext context) {
-    Widget voce(String etichetta, String valore) => Padding(
-      padding: EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 140,
-            child: Text(
-              etichetta,
-              style: TextStyle(color: Theme.of(context).colorScheme.outline),
-            ),
-          ),
-          Expanded(child: Text(valore)),
-        ],
-      ),
-    );
-    DateTime? registrazione = utente.dataRegistrazione;
-    return AlertDialog(
-      title: Text(
-        utente.nomeCompleto.isEmpty
-            ? "Utente ${utente.idUtente}"
-            : utente.nomeCompleto,
-      ),
-      content: SizedBox(
-        width: 420,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            voce("Id", "${utente.idUtente}"),
-            voce("Email", utente.email ?? "—"),
-            voce(
-              "Ruolo",
-              utente.ruolo == "ADMIN" ? "Amministratore" : "Cliente",
-            ),
-            voce(
-              "Registrato il",
-              registrazione == null ? "—" : formattaDataOra(registrazione),
-            ),
-            voce("Stato", utente.attivo ? "Attivo" : "Disattivato"),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text("Chiudi"),
-        ),
-      ],
-    );
-  }
-}
 
 /// Finestra per scrivere la nuova giacenza: restituisce il numero, o null se si annulla.
 class _DialogoGiacenza extends StatefulWidget {

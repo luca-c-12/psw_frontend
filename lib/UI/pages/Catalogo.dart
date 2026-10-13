@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:psw_frontend/UI/pages/DettaglioProdotto.dart';
 import 'package:psw_frontend/UI/widgets/Avvisi.dart';
+import 'package:psw_frontend/UI/widgets/Footer.dart';
 import 'package:psw_frontend/UI/widgets/InputField.dart';
 import 'package:psw_frontend/UI/widgets/ProductCard.dart';
 import 'package:psw_frontend/UI/widgets/buttons/CircularIconButton.dart';
@@ -123,43 +124,51 @@ class _CatalogoState extends State<Catalogo> with AzioniPagina<Catalogo>{
     return Center(child: Text("Nessun prodotto trovato!"));
   }
 
+  // griglia, "Carica altri" e footer scorrono insieme, come in una pagina web
   Widget yesResults() {
-    return Column(
-      children: [
-        Expanded(
-          child: GridView.builder(
-            padding: EdgeInsets.all(12),
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.all(12),
+          sliver: SliverGrid(
             gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 240,
               childAspectRatio: 0.68,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
             ),
-            itemCount: _products.length,
-            itemBuilder: (context, index) {
-              return ProductCard(
-                product: _products[index],
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          DettaglioProdotto(prodotto: _products[index]),
-                    ),
-                  );
-                },
-              );
-            },
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                return ProductCard(
+                  product: _products[index],
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            DettaglioProdotto(prodotto: _products[index]),
+                      ),
+                    );
+                  },
+                );
+              },
+              childCount: _products.length,
+            ),
           ),
         ),
         if (!_ultima)
-          StadiumButton(
-            title: "Carica altri",
-            icon: Icons.expand_more_rounded,
-            disabled: _searching,
-            onPressed: () {
-              _search(daCapo: false);
-            },
+          SliverToBoxAdapter(
+            child: Center(
+              child: StadiumButton(
+                title: "Carica altri",
+                icon: Icons.expand_more_rounded,
+                disabled: _searching,
+                onPressed: () {
+                  _search(daCapo: false);
+                },
+              ),
+            ),
           ),
+        SliverToBoxAdapter(child: Footer()),
       ],
     );
   }

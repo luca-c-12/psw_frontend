@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:psw_frontend/UI/pages/DettaglioProdotto.dart';
 import 'package:psw_frontend/UI/widgets/Avvisi.dart';
+import 'package:psw_frontend/UI/widgets/Footer.dart';
 import 'package:psw_frontend/UI/widgets/ProductCard.dart';
+import 'package:psw_frontend/UI/widgets/SchedaUtente.dart';
 import 'package:psw_frontend/model/Model.dart';
 import 'package:psw_frontend/model/objects/Asta.dart';
 import 'package:psw_frontend/model/objects/Pagina.dart';
@@ -76,8 +79,18 @@ class _DettaglioAstaState extends State<DettaglioAsta>
     );
   }
 
+  /// Apre la pagina del prodotto messo all'asta (durante l'asta è fuori catalogo: compare "Non disponibile").
+  void _apriProdotto() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DettaglioProdotto(prodotto: _asta.prodotto),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    bool admin = Model.sharedInstance.admin;
     return Scaffold(
       appBar: AppBar(
         title: Text("Asta: ${_asta.prodotto.nome}"),
@@ -99,11 +112,15 @@ class _DettaglioAstaState extends State<DettaglioAsta>
               children: [
                 LayoutBuilder(
                   builder: (context, vincoli) {
-                    Widget immagine = ClipRRect(
+                    Widget immagine = InkWell(
+                      onTap: _apriProdotto,
                       borderRadius: BorderRadius.circular(20),
-                      child: ImmagineProdotto(
-                        url: _asta.prodotto.urlImmagine,
-                        altezza: 300,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: ImmagineProdotto(
+                          url: _asta.prodotto.urlImmagine,
+                          altezza: 300,
+                        ),
                       ),
                     );
                     if (vincoli.maxWidth > 700) {
@@ -146,6 +163,8 @@ class _DettaglioAstaState extends State<DettaglioAsta>
                 ..._offerte.map(
                   (o) => Card(
                     child: ListTile(
+                      // l'admin vede la scheda di chi ha offerto
+                      onTap: admin ? () => mostraSchedaUtente(context, o.idCliente) : null,
                       leading: CircleAvatar(child: Icon(Icons.person_rounded)),
                       title: Text(o.offerente ?? "Anonimo"),
                       subtitle: Text(formattaDataOra(o.dataOfferta)),
@@ -157,6 +176,7 @@ class _DettaglioAstaState extends State<DettaglioAsta>
                     ),
                   ),
                 ),
+                Footer(),
               ],
             ),
           ),
@@ -180,6 +200,12 @@ class _DettaglioAstaState extends State<DettaglioAsta>
           style: tema.textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.bold,
           ),
+        ),
+        TextButton.icon(
+          onPressed: _apriProdotto,
+          style: TextButton.styleFrom(padding: EdgeInsets.zero),
+          icon: Icon(Icons.info_outline, size: 18),
+          label: Text("Scheda del prodotto e recensioni"),
         ),
         SizedBox(height: 8),
         Chip(

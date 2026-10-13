@@ -3,9 +3,12 @@ import 'package:psw_frontend/UI/pages/DettaglioAsta.dart';
 import 'package:psw_frontend/UI/pages/DettaglioProdotto.dart';
 import 'package:psw_frontend/UI/widgets/Avvisi.dart';
 import 'package:psw_frontend/UI/widgets/ProductCard.dart';
+import 'package:psw_frontend/UI/widgets/SchedaUtente.dart';
 import 'package:psw_frontend/model/Model.dart';
+import 'package:psw_frontend/model/managers/RestManager.dart';
 import 'package:psw_frontend/model/objects/Asta.dart';
 import 'package:psw_frontend/model/objects/Carrello.dart';
+import 'package:psw_frontend/model/objects/Cliente.dart';
 import 'package:psw_frontend/model/objects/Pagina.dart';
 import 'package:psw_frontend/model/objects/Prodotto.dart';
 import 'package:psw_frontend/model/support/Formati.dart';
@@ -622,6 +625,7 @@ class _RiepilogoOrdineState extends State<RiepilogoOrdine>
   Ordine? _ordine;
   bool _caricamento = false;
   bool _apertura = false; // true mentre si apre la scheda di un prodotto
+  Utente? _cliente; // solo admin: chi ha fatto l'ordine
 
   @override
   void initState() {
@@ -639,11 +643,41 @@ class _RiepilogoOrdineState extends State<RiepilogoOrdine>
         _ordine = ordine;
       });
     }
+    int? idCliente = ordine.idCliente;
+    if (widget.admin && idCliente != null) _caricaCliente(idCliente);
   }, imposta: (v) => _caricamento = v);
 
-  /// Apre la scheda attuale del prodotto di una riga (errore se ora è nascosto o esaurito).
-  Future<void> _apriProdotto(int codiceProdotto) => esegui(() async {
-    Prodotto prodotto = await Model.sharedInstance.getProdotto(codiceProdotto);
+  /// Solo admin: legge chi ha fatto l'ordine. Se non ci si riesce, il riepilogo si mostra lo stesso.
+  Future<void> _caricaCliente(int idCliente) async {
+    try {
+      Utente u = await Model.sharedInstance.getUtente(idCliente);
+      if (mounted) {
+        setState(() {
+          _cliente = u;
+        });
+      }
+    } catch (_) {
+      // resta visibile solo il numero del cliente
+    }
+  }
+
+  /// Apre la scheda attuale del prodotto di una riga. Se ora è nascosto o esaurito il cliente vede
+  /// l'errore, mentre l'admin apre comunque la pagina con i dati della riga (compare "Non disponibile").
+  Future<void> _apriProdotto(LineaOrdine riga, int codiceProdotto) => esegui(() async {
+    Prodotto prodotto;
+    try {
+      prodotto = await Model.sharedInstance.getProdotto(codiceProdotto);
+    } on ErroreApi catch (e) {
+      if (!widget.admin || e.stato != 404) rethrow;
+      prodotto = Prodotto(
+        codiceProdotto: codiceProdotto,
+        nome: riga.nomeProdotto,
+        prezzo: riga.prezzoUnitario,
+        categoria: "",
+        disponibile: false,
+        urlImmagine: riga.urlImmagine,
+      );
+    }
     if (mounted) {
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -708,6 +742,7 @@ class _RiepilogoOrdineState extends State<RiepilogoOrdine>
                   _voce("Numero ordine", "${ordine.idOrdine}"),
                   _voce("Data", formattaDataOra(ordine.dataOrdine)),
                   _voce("Spedito a", ordine.indirizzoSpedizione ?? "—"),
+                  if (widget.admin) _voceCliente(ordine),
                   Divider(height: 32),
                   Text("Prodotti", style: tema.textTheme.titleMedium),
                   SizedBox(height: 8),
@@ -740,6 +775,36 @@ class _RiepilogoOrdineState extends State<RiepilogoOrdine>
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// Riga "Cliente" del riepilogo visto dall'admin: il nome apre la scheda dell'utente.
+  Widget _voceCliente(Ordine ordine) {
+    ThemeData tema = Theme.of(context);
+    int? idCliente = ordine.idCliente;
+    Utente? cliente = _cliente;
+    if (idCliente == null) return _voce("Cliente", "—");
+    String nome = cliente == null || cliente.nomeCompleto.isEmpty
+        ? "Cliente n. $idCliente"
+        : "${cliente.nomeCompleto} (n. $idCliente)";
+    if (cliente != null && !cliente.attivo) nome = "$nome · account disattivato";
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(
+              "Cliente",
+              style: tema.textTheme.bodyMedium?.copyWith(
+                color: tema.colorScheme.outline,
+              ),
+            ),
+          ),
+          Expanded(child: LinkUtente(testo: nome, idUtente: idCliente)),
+        ],
       ),
     );
   }
@@ -790,7 +855,7 @@ class _RiepilogoOrdineState extends State<RiepilogoOrdine>
                       padding: EdgeInsets.zero,
                       visualDensity: VisualDensity.compact,
                     ),
-                    onPressed: _apertura ? null : () => _apriProdotto(codice),
+                    onPressed: _apertura ? null : () => _apriProdotto(riga, codice),
                     child: Text("Visualizza prodotto"),
                   ),
               ],

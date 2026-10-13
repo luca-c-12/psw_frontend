@@ -26,6 +26,8 @@ class Constants {
   static final String REQUEST_ASTE_MIE_OFFERTE = "/aste/mie-offerte";
   static final String REQUEST_PROFILO = "/utenti/me";
   static final String REQUEST_RICARICA = "/utenti/me/ricarica";
+  static final String REQUEST_STATO_PROFILO = "/utenti/me/stato";       // {"attivo": true/false}, non riattiva
+  static final String REQUEST_RIATTIVA = "/utenti/me/riattiva";
   static final String REQUEST_ADMIN_PRODOTTI = "/admin/prodotti";        // /{codice}, /{codice}/giacenza, /{codice}/visibilita
   static final String REQUEST_ADMIN_ASTE = "/admin/aste";                // /{idAsta}
   static final String REQUEST_ADMIN_ORDINI = "/admin/ordini";            // /{id}
@@ -46,6 +48,12 @@ class Constants {
       // il client richiede PKCE anche qui: il code_challenge è fittizio perché il codice restituito non si usa
       + "&code_challenge_method=S256&code_challenge=registrazionePswFrontendCodiceFittizio0123456";
   static final String LINK_ACCOUNT = "http://" + ADDRESS_AUTHENTICATION_SERVER + "/realms/" + REALM + "/account";
+
+  // footer (testi segnaposto da sostituire)
+  static final String FOOTER_PROGETTO = "Progetto d'esame di Piattaforme Web · Università della Calabria";
+  static final String FOOTER_AUTORE = "Nome Cognome";
+  static final String FOOTER_EMAIL = "nome.cognome@studenti.unical.it";
+  static final String LINK_GITHUB = "https://github.com/utente/psw";
 
 
 }

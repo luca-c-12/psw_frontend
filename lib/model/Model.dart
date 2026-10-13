@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:collection';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
-import 'package:psw_frontend/UI/widgets/Avvisi.dart';
 import 'package:psw_frontend/model/managers/RestManager.dart';
 import 'package:psw_frontend/model/objects/Asta.dart';
 import 'package:psw_frontend/model/objects/AuthenticationData.dart';
@@ -33,6 +31,9 @@ class Model extends ChangeNotifier {
 
   Carrello? _carrello;
   Cliente? _profilo;
+
+  // login riuscito su Keycloak, ma l'account è disattivato: si aspetta che l'utente scelga se riattivarlo
+  AuthenticationData? _accessoSospeso;
 
 
   Model._() {
@@ -99,35 +100,97 @@ class Model extends ChangeNotifier {
           return LogInResult.error_unknown;
         }
       }
-      _restManager.token = _authenticationData!.accessToken;
-      _leggiDatiDalToken(_authenticationData!.accessToken!);
-      _timerRefresh?.cancel();
-      _timerRefresh = Timer.periodic(Duration(seconds: (_authenticationData!.expiresIn! - 50)), (Timer t) {
-        _refreshToken();
-      });
-      notifyListeners();
-      if (cliente) {
-        if(_carrello != null && _carrello!.righe.isNotEmpty) {
-          try {
-            await _unisciCarrelloOspite();
-            try { (await SharedPreferences.getInstance()).remove(Constants.CHIAVE_CARRELLO_OSPITE); } catch (_) {}
-          }catch(e) {
-            _precaricaCarrello();
-          }
-        }else {
-          _precaricaCarrello();
-        }
-      }else {
-        try { (await SharedPreferences.getInstance()).remove(Constants.CHIAVE_CARRELLO_OSPITE); } catch (_) {}
-        _carrello = null;
-        notifyListeners();
+      // l'accesso non è ancora completo: prima si controlla che l'account non sia disattivato
+      AuthenticationData dati = _authenticationData!;
+      _authenticationData = null;
+      _leggiDatiDalToken(dati.accessToken!);
+      if (_ruoli.contains("CLIENTE") && !_ruoli.contains("ADMIN") && await _accountDisattivato(dati.accessToken!)) {
+        _accessoSospeso = dati;
+        return LogInResult.account_disattivato;
       }
-      return LogInResult.logged;
+      return await _completaAccesso(dati);
     }
     catch (e) {
       _authenticationData = null;
       _ultimoErroreLogin = e.toString();
       return LogInResult.error_unknown;
+    }
+  }
+
+  /// Rende effettivo il login: token, rinnovo automatico, avviso alle pagine e carrello.
+  Future<LogInResult> _completaAccesso(AuthenticationData dati) async {
+    _authenticationData = dati;
+    _restManager.token = _authenticationData!.accessToken;
+    _timerRefresh?.cancel();
+    _timerRefresh = Timer.periodic(Duration(seconds: (_authenticationData!.expiresIn! - 50)), (Timer t) {
+      _refreshToken();
+    });
+    notifyListeners();
+    if (cliente) {
+      if(_carrello != null && _carrello!.righe.isNotEmpty) {
+        try {
+          await _unisciCarrelloOspite();
+          try { (await SharedPreferences.getInstance()).remove(Constants.CHIAVE_CARRELLO_OSPITE); } catch (_) {}
+        }catch(e) {
+          _precaricaCarrello();
+        }
+      }else {
+        _precaricaCarrello();
+      }
+    }else {
+      try { (await SharedPreferences.getInstance()).remove(Constants.CHIAVE_CARRELLO_OSPITE); } catch (_) {}
+      _carrello = null;
+      notifyListeners();
+    }
+    return LogInResult.logged;
+  }
+
+  /// GET /utenti/me/stato con il token appena ricevuto: legge lo stato senza riattivare l'account.
+  /// Se la risposta non arriva (es. backend senza questo endpoint) l'account si considera attivo.
+  Future<bool> _accountDisattivato(String token) async {
+    // durante il controllo un eventuale 401 non deve chiudere la sessione (cancellerebbe il carrello ospite)
+    void Function()? sessioneScaduta = _restManager.sessioneScaduta;
+    _restManager.sessioneScaduta = null;
+    _restManager.token = token;
+    try {
+      String risposta = await _restManager.makeGetRequest(Constants.ADDRESS_STORE_SERVER, Constants.REQUEST_STATO_PROFILO);
+      return jsonDecode(risposta)["attivo"] == false;
+    } catch (_) {
+      return false;
+    } finally {
+      _restManager.token = null;
+      _restManager.sessioneScaduta = sessioneScaduta;
+    }
+  }
+
+  /// L'utente ha scelto di riattivare l'account: POST /utenti/me/riattiva, poi l'accesso si completa.
+  Future<LogInResult> riattivaAccount() async {
+    AuthenticationData? dati = _accessoSospeso;
+    _accessoSospeso = null;
+    if (dati == null) return LogInResult.error_unknown;
+    try {
+      _restManager.token = dati.accessToken;
+      await _restManager.makePostRequest(Constants.ADDRESS_STORE_SERVER, Constants.REQUEST_RIATTIVA, null);
+      return await _completaAccesso(dati);
+    } catch (e) {
+      _ultimoErroreLogin = e.toString();
+      _restManager.token = null;
+      _authenticationData = null;
+      _ruoli = [];
+      _nomeUtente = null;
+      await _chiudiSessioneKeycloak(dati.refreshToken);
+      return LogInResult.error_unknown;
+    }
+  }
+
+  /// L'utente non vuole riattivare l'account: si chiude la sessione aperta su Keycloak e si resta ospiti.
+  Future<void> annullaAccessoSospeso() async {
+    AuthenticationData? dati = _accessoSospeso;
+    _accessoSospeso = null;
+    _ruoli = [];
+    _nomeUtente = null;
+    if (dati != null) {
+      await _chiudiSessioneKeycloak(dati.refreshToken);
     }
   }
 
@@ -154,15 +217,19 @@ class Model extends ChangeNotifier {
   }
 
   Future<bool> logOut() async {
-    try{
-      String? refreshToken = _authenticationData?.refreshToken;
-      _terminaSessione();
-      if (refreshToken != null) {
-        Map<String, String> params = Map();
-        params["client_id"] = Constants.CLIENT_ID;
-        params["refresh_token"] = refreshToken;
-        await _restManager.makePostRequest(Constants.ADDRESS_AUTHENTICATION_SERVER, Constants.REQUEST_LOGOUT, params, type: TypeHeader.urlencoded, controllaStato: false);
-      }
+    String? refreshToken = _authenticationData?.refreshToken;
+    _terminaSessione();
+    return _chiudiSessioneKeycloak(refreshToken);
+  }
+
+  /// Chiude la sessione su Keycloak (il refresh token non vale più). false se Keycloak non risponde.
+  Future<bool> _chiudiSessioneKeycloak(String? refreshToken) async {
+    if (refreshToken == null) return true;
+    try {
+      Map<String, String> params = Map();
+      params["client_id"] = Constants.CLIENT_ID;
+      params["refresh_token"] = refreshToken;
+      await _restManager.makePostRequest(Constants.ADDRESS_AUTHENTICATION_SERVER, Constants.REQUEST_LOGOUT, params, type: TypeHeader.urlencoded, controllaStato: false);
       return true;
     }
     catch (e) {
@@ -176,6 +243,7 @@ class Model extends ChangeNotifier {
     _timerRefresh = null;
     _restManager.token = null;
     _authenticationData = null;
+    _accessoSospeso = null;
     _ruoli = [];
     _nomeUtente = null;
     _carrello = null;

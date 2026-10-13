@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:psw_frontend/UI/widgets/Avvisi.dart';
+import 'package:psw_frontend/UI/widgets/Footer.dart';
 import 'package:psw_frontend/UI/widgets/ProductCard.dart';
 import 'package:psw_frontend/model/Model.dart';
 import 'package:psw_frontend/model/managers/RestManager.dart';
@@ -241,6 +242,7 @@ class _DettaglioProdottoState extends State<DettaglioProdotto>
                       child: Text("Mostra altre recensioni"),
                     ),
                   ),
+                Footer(),
               ],
             ),
           ),
@@ -271,11 +273,14 @@ class _DettaglioProdottoState extends State<DettaglioProdotto>
               color: tema.colorScheme.onSurfaceVariant,
             ),
           ),
-        SizedBox(height: 12),
-        Chip(
-          avatar: Icon(Icons.sell_outlined, size: 18),
-          label: Text(p.nomeCategoria),
-        ),
+        // la categoria manca solo quando la pagina è aperta dai dati di un vecchio ordine
+        if (p.categoria.isNotEmpty) ...[
+          SizedBox(height: 12),
+          Chip(
+            avatar: Icon(Icons.sell_outlined, size: 18),
+            label: Text(p.nomeCategoria),
+          ),
+        ],
         SizedBox(height: 12),
         Text(
           formattaEuro(p.prezzo),

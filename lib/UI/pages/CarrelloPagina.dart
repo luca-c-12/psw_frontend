@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:psw_frontend/UI/pages/Storico.dart';
 import 'package:psw_frontend/UI/widgets/Avvisi.dart';
+import 'package:psw_frontend/UI/widgets/Footer.dart';
 import 'package:psw_frontend/model/Model.dart';
 import 'package:psw_frontend/model/objects/Carrello.dart';
 import 'package:psw_frontend/model/support/Formati.dart';
@@ -162,8 +163,11 @@ class _CarrelloPaginaState extends State<CarrelloPagina>
             Expanded(
               child: ListView.builder(
                 padding: EdgeInsets.all(16),
-                itemCount: carrello.righe.length,
-                itemBuilder: (context, index) => _riga(carrello.righe[index]),
+                // l'ultima voce è il footer
+                itemCount: carrello.righe.length + 1,
+                itemBuilder: (context, index) => index == carrello.righe.length
+                    ? Footer()
+                    : _riga(carrello.righe[index]),
               ),
             ),
             _riepilogo(carrello),
