@@ -5,7 +5,6 @@ import 'package:psw_frontend/model/Model.dart';
 import 'package:psw_frontend/model/objects/Cliente.dart';
 import 'package:psw_frontend/model/support/Formati.dart';
 
-
 /// Profilo del cliente. Come il carrello è uno stato condiviso nel Model:
 /// per esempio il checkout cambia il saldo e questa pagina si aggiorna da sola.
 class Profilo extends StatefulWidget {
@@ -15,12 +14,11 @@ class Profilo extends StatefulWidget {
   _ProfiloState createState() => _ProfiloState();
 }
 
-class _ProfiloState extends State<Profilo> with AzioniPagina<Profilo>{
+class _ProfiloState extends State<Profilo> with AzioniPagina<Profilo> {
   TextEditingController _indirizzo = TextEditingController();
   TextEditingController _importo = TextEditingController();
   bool _caricamento = false;
   bool _invio = false;
-
 
   @override
   void initState() {
@@ -35,50 +33,63 @@ class _ProfiloState extends State<Profilo> with AzioniPagina<Profilo>{
     super.dispose();
   }
 
-
   /// Scarica il profilo dal backend.
   Future<void> _carica() => esegui(() async {
-      Cliente c = await Model.sharedInstance.caricaProfilo();
-      if (mounted) _indirizzo.text = c.indirizzo ?? "";
-    }, imposta: (v) => _caricamento = v);
-
-
+    Cliente c = await Model.sharedInstance.caricaProfilo();
+    if (mounted) _indirizzo.text = c.indirizzo ?? "";
+  }, imposta: (v) => _caricamento = v);
 
   /// Bottone "Salva" dell'indirizzo.
   Future<void> _salvaIndirizzo() async {
     String indirizzo = _indirizzo.text.trim();
-    if(indirizzo.isEmpty) {
+    if (indirizzo.isEmpty) {
       mostraErrore(context, "Scrivi un indirizzo di spedizione.");
       return;
     }
-    await esegui(() => Model.sharedInstance.aggiornaIndirizzo(indirizzo),
-        imposta: (v) => _invio = v, messaggio: "Indirizzo salvato correttamente.");
+    await esegui(
+      () => Model.sharedInstance.aggiornaIndirizzo(indirizzo),
+      imposta: (v) => _invio = v,
+      messaggio: "Indirizzo salvato correttamente.",
+    );
   }
 
   /// Bottone "Ricarica".
   Future<void> _ricarica() async {
     double? importo = leggiImporto(_importo.text);
-    if(importo == null || importo <= 0) {
+    if (importo == null || importo <= 0) {
       mostraErrore(context, "Inserisci un importo valido.");
       return;
     }
-    await esegui(() async {
-      await Model.sharedInstance.ricaricaSaldo(importo);
-      if(mounted) _importo.clear();
-    }, imposta: (v) => _invio = v,
-    messaggio: "Saldo ricaricato correttamente.");
+    await esegui(
+      () async {
+        await Model.sharedInstance.ricaricaSaldo(importo);
+        if (mounted) _importo.clear();
+      },
+      imposta: (v) => _invio = v,
+      messaggio: "Saldo ricaricato correttamente.",
+    );
   }
-
 
   /// Bottone "Disattiva account": dopo la conferma disattiva l'account ed esce.
   Future<void> _disattiva() async {
-    // TODO
+    if (!(await chiediConferma(
+          context,
+          "Procedere alla disattivazione dell'account?",
+        )) ||
+        !mounted)
+      return;
+    await esegui(() async {
+      await Model.sharedInstance.disattivaAccount();
+      if (mounted)
+        mostraMessaggio(context, "Account disattivato con successo.");
+      await Model.sharedInstance.logOut();
+    }, imposta: (v) => _invio = v);
   }
 
   void _apriStorico(int tab) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => Storico(tabIniziale: tab)),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => Storico(tabIniziale: tab)));
   }
 
   @override
@@ -116,11 +127,20 @@ class _ProfiloState extends State<Profilo> with AzioniPagina<Profilo>{
                       leading: CircleAvatar(
                         radius: 26,
                         child: Text(
-                          profilo.nomeCompleto.isEmpty ? "?" : profilo.nomeCompleto.substring(0, 1).toUpperCase(),
+                          profilo.nomeCompleto.isEmpty
+                              ? "?"
+                              : profilo.nomeCompleto
+                                    .substring(0, 1)
+                                    .toUpperCase(),
                           style: tema.textTheme.titleLarge,
                         ),
                       ),
-                      title: Text(profilo.nomeCompleto.isEmpty ? "Cliente" : profilo.nomeCompleto, style: tema.textTheme.titleLarge),
+                      title: Text(
+                        profilo.nomeCompleto.isEmpty
+                            ? "Cliente"
+                            : profilo.nomeCompleto,
+                        style: tema.textTheme.titleLarge,
+                      ),
                       subtitle: Text(profilo.email ?? ""),
                     ),
                   ),
@@ -161,22 +181,32 @@ class _ProfiloState extends State<Profilo> with AzioniPagina<Profilo>{
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Saldo disponibile", style: tema.textTheme.labelLarge),
+                          Text(
+                            "Saldo disponibile",
+                            style: tema.textTheme.labelLarge,
+                          ),
                           Text(
                             formattaEuro(profilo.saldo),
-                            style: tema.textTheme.displaySmall?.copyWith(color: tema.colorScheme.primary, fontWeight: FontWeight.bold),
+                            style: tema.textTheme.displaySmall?.copyWith(
+                              color: tema.colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           SizedBox(height: 16),
                           Text("Ricarica", style: tema.textTheme.titleMedium),
                           SizedBox(height: 8),
                           Wrap(
                             spacing: 8,
-                            children: [10.0, 50.0, 100.0].map((valore) => ActionChip(
-                              label: Text("+ ${formattaEuro(valore)}"),
-                              onPressed: () {
-                                _importo.text = valore.toStringAsFixed(0);
-                              },
-                            )).toList(),
+                            children: [10.0, 50.0, 100.0]
+                                .map(
+                                  (valore) => ActionChip(
+                                    label: Text("+ ${formattaEuro(valore)}"),
+                                    onPressed: () {
+                                      _importo.text = valore.toStringAsFixed(0);
+                                    },
+                                  ),
+                                )
+                                .toList(),
                           ),
                           SizedBox(height: 12),
                           Row(
@@ -184,7 +214,9 @@ class _ProfiloState extends State<Profilo> with AzioniPagina<Profilo>{
                               Expanded(
                                 child: TextField(
                                   controller: _importo,
-                                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                                  keyboardType: TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                                   decoration: InputDecoration(
                                     labelText: "Importo (€)",
                                     border: OutlineInputBorder(),
@@ -194,7 +226,9 @@ class _ProfiloState extends State<Profilo> with AzioniPagina<Profilo>{
                               SizedBox(width: 12),
                               FilledButton.icon(
                                 onPressed: _invio ? null : _ricarica,
-                                icon: Icon(Icons.account_balance_wallet_outlined),
+                                icon: Icon(
+                                  Icons.account_balance_wallet_outlined,
+                                ),
                                 label: Text("Ricarica"),
                               ),
                             ],
@@ -211,7 +245,10 @@ class _ProfiloState extends State<Profilo> with AzioniPagina<Profilo>{
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Indirizzo di spedizione", style: tema.textTheme.titleMedium),
+                          Text(
+                            "Indirizzo di spedizione",
+                            style: tema.textTheme.titleMedium,
+                          ),
                           Text(
                             "Serve per completare gli ordini e per fare offerte alle aste.",
                             style: tema.textTheme.bodySmall,
@@ -242,14 +279,26 @@ class _ProfiloState extends State<Profilo> with AzioniPagina<Profilo>{
                   Card(
                     color: tema.colorScheme.errorContainer,
                     child: ListTile(
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      title: Text("Disattiva account", style: TextStyle(color: tema.colorScheme.onErrorContainer)),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      title: Text(
+                        "Disattiva account",
+                        style: TextStyle(
+                          color: tema.colorScheme.onErrorContainer,
+                        ),
+                      ),
                       subtitle: Text(
                         "Gli ordini restano registrati, ma non potrai più accedere.",
-                        style: TextStyle(color: tema.colorScheme.onErrorContainer),
+                        style: TextStyle(
+                          color: tema.colorScheme.onErrorContainer,
+                        ),
                       ),
                       trailing: FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: tema.colorScheme.error),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: tema.colorScheme.error,
+                        ),
                         onPressed: _invio ? null : _disattiva,
                         child: Text("Disattiva"),
                       ),
@@ -263,6 +312,4 @@ class _ProfiloState extends State<Profilo> with AzioniPagina<Profilo>{
       },
     );
   }
-
-
 }

@@ -10,6 +10,7 @@ import 'package:psw_frontend/model/objects/Cliente.dart';
 import 'package:psw_frontend/model/objects/Pagina.dart';
 import 'package:psw_frontend/model/objects/Prodotto.dart';
 import 'package:psw_frontend/model/support/Constants.dart';
+import 'package:psw_frontend/model/support/Formati.dart';
 import 'package:psw_frontend/model/support/LogInResult.dart';
 
 
@@ -336,6 +337,23 @@ class Model extends ChangeNotifier {
   //     Se il merge fallisce il login non deve fallire (al massimo il carrello ospite si perde).
   //  4. Constants.CARRELLO_OSPITE = true.
 
+  //  4. Constants.CARRELLO_OSPITE = true.
+
+  /// Ricalcola subtotali, totale e numero di articoli del carrello ospite, lo salva e avvisa le pagine.
+  Carrello _salvaOspite(List<RigaCarrello> righe) {
+    double totale = 0.0;
+    int numeroArticoli = 0;
+    for(RigaCarrello r in righe) {
+      r.subtotale = r.prodotto.prezzo*r.quantita;
+      totale += r.subtotale;
+      numeroArticoli += r.quantita;
+    }
+    Carrello c = new Carrello(idCarrello: 0, righe: righe, numeroArticoli: numeroArticoli, totale: totale);
+    _aggiornaCarrello(c);
+    return c;
+  }
+
+
   /// Aggiunge un prodotto al carrello ospite, o ne somma la quantità se c'è già.
   /// I dati del prodotto (nome, prezzo, immagine) si prendono con getProdotto.
   Future<Carrello> _aggiungiOspite(int codiceProdotto, int quantita) async {
@@ -345,8 +363,20 @@ class Model extends ChangeNotifier {
 
   /// Imposta la quantità di una riga del carrello ospite (0 = la toglie).
   Carrello _aggiornaOspite(int codiceProdotto, int quantita) {
-    // TODO
-    throw UnimplementedError("TODO: _aggiornaOspite");
+    List<RigaCarrello> righe = List.of(_carrello?.righe ?? []);
+    int i = righe.indexWhere((r) => r.codiceProdotto == codiceProdotto);
+    if(i != -1) {
+      if(quantita <= 0) {
+        righe.removeAt(i);
+        return _salvaOspite(righe);
+      }
+      int quantitaAggiornata;
+      if(quantita >= 99) quantitaAggiornata = 99;
+      else quantitaAggiornata = quantita;
+      righe[i].quantita = quantitaAggiornata;
+    }
+
+    return _salvaOspite(righe);
   }
 
   /// POST /carrello/merge   Body: {"righe": [{"codiceProdotto": ..., "quantita": ...}]} (max 50 righe)
@@ -497,8 +527,14 @@ class Model extends ChangeNotifier {
 
   /// GET /admin/ordini?dal=yyyy-MM-dd&al=yyyy-MM-dd (estremi inclusi) → pagina di OrdineSintesiDTO.
   Future<Pagina<Ordine>> getOrdiniAdmin(DateTime dal, DateTime al, int pagina) async {
-    // TODO
-    throw UnimplementedError("TODO: getOrdiniAdmin");
+    Map<String, String> params = {
+      "dal": giornoPerBackend(dal),
+      "al" : giornoPerBackend(al)
+
+    };
+    params.addAll(_pagina(pagina));
+    String risposta = await _restManager.makeGetRequest(Constants.ADDRESS_STORE_SERVER, Constants.REQUEST_ADMIN_ORDINI, params);
+    return Pagina.fromJson(jsonDecode(risposta), Ordine.fromJson);
   }
 
   /// GET /admin/ordini/{id} → OrdineDTO completo.

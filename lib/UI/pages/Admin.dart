@@ -260,7 +260,28 @@ class _AdminState extends State<Admin> with AzioniPagina<Admin> {
 
   /// Carica una pagina degli ordini fatti tra _dal e _al (estremi inclusi).
   Future<void> _caricaOrdini({bool daCapo = true}) async {
-    // TODO
+    if (_caricamentoOrdini) return;
+    if(DateTime(_dal.year, _dal.month, _dal.day)
+        .isAfter(DateTime(_al.year, _al.month, _al.day))) {
+      mostraErrore(context, "Inserire un intervallo valido.");
+      return;
+    }
+    if (daCapo) {
+      setState(() {
+        _paginaOrdini = 0;
+        _ordini.clear();
+        _ultimaOrdini = true;
+      });
+    }
+    await esegui(() async {
+      Pagina<Ordine> p = await Model.sharedInstance.getOrdiniAdmin(_dal, _al, _paginaOrdini);
+      if (!mounted) return;
+      setState(() {
+        _ordini.addAll(p.contenuto);
+        _ultimaOrdini = p.ultima;
+        _paginaOrdini++;
+      });
+    }, imposta: (v) => _caricamentoOrdini = v);
   }
 
   Future<void> _scegliGiorno(bool inizio) async {
