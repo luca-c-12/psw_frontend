@@ -33,20 +33,15 @@ class Footer extends StatelessWidget {
                 style: stile,
               ),
               _link(context, Icons.code_rounded, "GitHub", Constants.LINK_GITHUB),
-              _link(
+            /*  _link(
                 context,
                 Icons.mail_outline_rounded,
                 Constants.FOOTER_EMAIL,
                 "mailto:${Constants.FOOTER_EMAIL}",
-              ),
+              ), */
             ],
           ),
           SizedBox(height: 4),
-          Text(
-            "${Constants.FOOTER_PROGETTO} · versione ${Constants.APP_VERSION}",
-            style: stile,
-            textAlign: TextAlign.center,
-          ),
           Text(
             "Negozio dimostrativo: prodotti, pagamenti e spedizioni non sono reali.",
             style: stile,

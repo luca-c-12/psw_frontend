@@ -1,6 +1,5 @@
 class Constants {
   // app info
-  static final String APP_VERSION = "1.0.0";
   static final String APP_NAME = "PSW Store";
 
   // addresses
@@ -50,10 +49,10 @@ class Constants {
   static final String LINK_ACCOUNT = "http://" + ADDRESS_AUTHENTICATION_SERVER + "/realms/" + REALM + "/account";
 
   // footer (testi segnaposto da sostituire)
-  static final String FOOTER_PROGETTO = "Progetto d'esame di Piattaforme Web · Università della Calabria";
-  static final String FOOTER_AUTORE = "Nome Cognome";
-  static final String FOOTER_EMAIL = "nome.cognome@studenti.unical.it";
-  static final String LINK_GITHUB = "https://github.com/utente/psw";
+  static final String FOOTER_PROGETTO = "Progetto per l'esame di Piattaforme Software per Applicazioni su Web";
+  static final String FOOTER_AUTORE = "Luca Cirelli";
+  //static final String FOOTER_EMAIL = "";
+  static final String LINK_GITHUB = "https://github.com/luca-c-12";
 
 
 }
